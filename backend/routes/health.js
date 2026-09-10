@@ -2,6 +2,14 @@ const express = require('express');
 const { requireAuth } = require('../auth');
 const odbc = require('../db');
 
+function getVersion() {
+  try {
+    return require('../package.json').version || '';
+  } catch {
+    return '';
+  }
+}
+
 const router = express.Router();
 
 router.get('/', requireAuth, async (req, res) => {
@@ -11,7 +19,7 @@ router.get('/', requireAuth, async (req, res) => {
     odbc: health,
     hasConnectionString: odbc.canResolveConnectionString(),
     source: odbc.connectionSource(),
-    version: require('../../package.json').version
+    version: getVersion()
   });
 });
 
