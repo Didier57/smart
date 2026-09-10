@@ -170,10 +170,7 @@ async function tables(catalog, schema) {
     return res.rows;
   }
   const conn = await getConnection();
-  const opts = {};
-  if (catalog) opts.catalog = catalog;
-  if (schema) opts.schema = schema;
-  return conn.tables(opts);
+  return conn.tables(catalog || null, schema || null, null, null);
 }
 
 async function columns(catalog, schema, table) {
@@ -183,11 +180,7 @@ async function columns(catalog, schema, table) {
     return res.rows;
   }
   const conn = await getConnection();
-  const opts = {};
-  if (catalog) opts.catalog = catalog;
-  if (schema) opts.schema = schema;
-  if (table) opts.table = table;
-  return conn.columns(opts);
+  return conn.columns(catalog || null, schema || null, table || null, null);
 }
 
 async function testConnection() {

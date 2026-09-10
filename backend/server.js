@@ -10,6 +10,7 @@ app.use(express.json({ limit: '5mb' }));
 
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/clients', require('./routes/clients'));
+app.use('/api/contracts', require('./routes/contracts'));
 app.use('/api/explorer', require('./routes/explorer'));
 app.use('/api/export', require('./routes/export'));
 app.use('/api/health', require('./routes/health'));
