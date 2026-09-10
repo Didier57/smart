@@ -7,7 +7,7 @@ const router = express.Router();
 router.get('/', requireAuth, async (req, res) => {
   try {
     const rows = await odbc.query(
-      'SELECT IDClient, ClientNom, ClientSite, ClientAdresse, ClientCP, ClientTelephone, ClientEmail, ClientContrat, ClientContratType, ClientDeleted, IDContract FROM "Client"'
+      'SELECT c.IDClient, c.ClientNom, c.ClientSite, c.ClientAdresse, c.ClientCP, c.ClientTelephone, c.ClientEmail, c.ClientContrat, c.ClientContratType, c.ClientDeleted, c.IDContract, co.Contract_Stop FROM "Client" c LEFT JOIN "Contract" co ON c.IDContract = co.IDContract'
     );
     res.json(rows);
   } catch (err) {

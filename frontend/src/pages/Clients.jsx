@@ -225,23 +225,25 @@ export default function Clients() {
             <thead className="bg-slate-50 sticky top-0 z-10">
               <tr>
                 {COLUMNS.map(col => (
-                  <th key={col.key} className="text-left px-3 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider border border-slate-200 whitespace-nowrap relative group"
-                    style={{ width: colWidths[col.key], minWidth: 50 }}>
-                    <div className="flex items-center gap-1.5">
-                      <span onClick={() => handleSort(col.key)} className="cursor-pointer hover:text-blue-600 select-none flex items-center gap-1 flex-1 min-w-0">
-                        {col.label}
-                        {sort.col === col.key ? (sort.dir === 'ASC' ? <ArrowUp size={12} className="text-blue-500 flex-shrink-0" /> : <ArrowDown size={12} className="text-blue-500 flex-shrink-0" />) : <ArrowUpDown size={10} className="text-slate-300 opacity-0 group-hover:opacity-100 transition flex-shrink-0" />}
-                      </span>
-                      <button onClick={e => { e.stopPropagation(); setOpenFilter(openFilter === col.key ? null : col.key); }}
-                        className={`p-0.5 rounded hover:bg-slate-200 transition flex-shrink-0 ${filters[col.key]?.size && !(col.key === 'ClientDeleted' && filters[col.key].size === 1 && filters[col.key].has('0')) ? 'text-blue-600' : 'text-slate-300 opacity-0 group-hover:opacity-100'}`} title="Filtrer">
-                        <Filter size={12} />
-                      </button>
+                  <th key={col.key} className="text-left px-3 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wider border border-slate-200 whitespace-nowrap group"
+                    style={{ width: colWidths[col.key] || 150, minWidth: 50 }}>
+                    <div className="relative">
+                      <div className="flex items-center gap-1.5">
+                        <span onClick={() => handleSort(col.key)} className="cursor-pointer hover:text-blue-600 select-none flex items-center gap-1 flex-1 min-w-0">
+                          {col.label}
+                          {sort.col === col.key ? (sort.dir === 'ASC' ? <ArrowUp size={12} className="text-blue-500 flex-shrink-0" /> : <ArrowDown size={12} className="text-blue-500 flex-shrink-0" />) : <ArrowUpDown size={10} className="text-slate-300 opacity-0 group-hover:opacity-100 transition flex-shrink-0" />}
+                        </span>
+                        <button onClick={e => { e.stopPropagation(); setOpenFilter(openFilter === col.key ? null : col.key); }}
+                          className={`p-0.5 rounded hover:bg-slate-200 transition flex-shrink-0 ${filters[col.key]?.size && !(col.key === 'ClientDeleted' && filters[col.key].size === 1 && filters[col.key].has('0')) ? 'text-blue-600' : 'text-slate-300 opacity-0 group-hover:opacity-100'}`} title="Filtrer">
+                          <Filter size={12} />
+                        </button>
+                      </div>
+                      {openFilter === col.key && (
+                        <ColumnFilterDropdown values={uniqueValues(col.key)} selected={filters[col.key] || new Set()}
+                          onToggle={v => toggleFilterValue(col.key, v)} onSelectAll={() => selectAllFilter(col.key)} onClear={() => clearFilter(col.key)} onClose={() => setOpenFilter(null)} />
+                      )}
                     </div>
-                    {openFilter === col.key && (
-                      <ColumnFilterDropdown values={uniqueValues(col.key)} selected={filters[col.key] || new Set()}
-                        onToggle={v => toggleFilterValue(col.key, v)} onSelectAll={() => selectAllFilter(col.key)} onClear={() => clearFilter(col.key)} onClose={() => setOpenFilter(null)} />
-                    )}
-                    <div className="absolute right-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-blue-400 z-20 opacity-0 group-hover:opacity-100 transition"
+                    <div className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 z-40 opacity-0 group-hover:opacity-100 transition"
                       onMouseDown={e => onResizeStart(e, col.key)} />
                   </th>
                 ))}
@@ -272,14 +274,14 @@ export default function Clients() {
                     </td>
                   )}
                   <td className="text-center px-2 py-2 border border-slate-200">
-                    {row.IDContract > 0 ? (
+                    {row.IDContract > 0 && (row.Contract_Stop === 0 || row.Contract_Stop === '0') ? (
                       <button onClick={() => setContractModal({ contractId: row.IDContract, clientRow: row })}
                         className="text-slate-400 hover:text-blue-600 transition p-1" title={`Contrat #${row.IDContract}`}>
                         <FileText size={14} />
                       </button>
                     ) : (
-                      <button onClick={() => setContractModal({ contractId: null, clientRow: row })}
-                        className="text-slate-300 hover:text-green-600 transition p-1" title="Créer un contrat">
+                      <button onClick={() => setContractModal({ contractId: row.IDContract || null, clientRow: row })}
+                        className="text-slate-300 hover:text-green-600 transition p-1" title={row.IDContract > 0 ? 'Contrat résilié — créer un nouveau' : 'Créer un contrat'}>
                         <Plus size={14} />
                       </button>
                     )}
