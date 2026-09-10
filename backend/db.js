@@ -93,7 +93,11 @@ function driverDetail(connStr) {
           lines.find(l => /file not found|can['’]t open/i.test(l)) ||
           [...lines].reverse().find(l => /SQLSTATE=/i.test(l)) ||
           '';
-        resolve(pick ? scrubPwd(pick) : '');
+        if (pick) {
+          resolve(scrubPwd(pick));
+        } else {
+          resolve(scrubPwd(text).replace(/\s+/g, ' ').slice(0, 500));
+        }
       } catch {
         resolve('');
       }
