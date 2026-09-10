@@ -5,3 +5,106 @@
 body {
   @apply bg-slate-50 text-slate-900 font-sans;
 }
+
+/* ==== Variables ==== */
+:root {
+  --primary: #1d4ed8;
+  --primary-dark: #1e40af;
+  --border: #e2e8f0;
+  --muted: #64748b;
+  --surface: #ffffff;
+}
+
+/* ==== Table Smart (style SSP-APP) ==== */
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: visible;
+}
+
+table.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+table.table th {
+  background: #f8fafc;
+  text-align: left;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--border);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  z-index: 2;
+}
+
+table.table th .th-label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+table.table th .th-sort {
+  font-size: 9px;
+  color: #94a3b8;
+}
+
+.filter-funnel {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  border-radius: 4px;
+  padding: 2px 3px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.filter-funnel:hover { background: #e2e8f0; color: var(--text); }
+.filter-funnel.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.filter-funnel { z-index: 7; }
+
+/* ==== Poignée de redimensionnement ==== */
+.col-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -5px;
+  width: 9px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 4;
+}
+.col-resize-handle:hover { background: rgba(14, 108, 255, 0.35); }
+
+/* ==== Table scrollable avec en-têtes figés ==== */
+.smart-page .table-wrap {
+  max-height: 70vh;
+  overflow: auto;
+}
+.smart-page table.table thead th { position: sticky; top: 0; z-index: 6; }
+.smart-page table.table th .th-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 2px;
+}
+.smart-page table.table th .filter-funnel { position: static; flex-shrink: 0; }
+
+table.table.clients-bordered th,
+table.table.clients-bordered td {
+  border: 1px solid #d3dae3;
+}
+table.table.clients-bordered th {
+  border-bottom: 1px solid #b9c3d0;
+}
