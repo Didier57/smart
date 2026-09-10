@@ -1,7 +1,6 @@
 const express = require('express');
 const { requireAuth } = require('../auth');
 const odbc = require('../db');
-const config = require('../config');
 
 const router = express.Router();
 
@@ -10,7 +9,8 @@ router.get('/', requireAuth, async (req, res) => {
   res.json({
     ok: true,
     odbc: health,
-    hasConnectionString: !!config.ODBC_CONNECTION_STRING,
+    hasConnectionString: odbc.canResolveConnectionString(),
+    source: odbc.connectionSource(),
     version: require('../../package.json').version
   });
 });

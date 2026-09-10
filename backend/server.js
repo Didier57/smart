@@ -12,6 +12,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/explorer', require('./routes/explorer'));
 app.use('/api/export', require('./routes/export'));
 app.use('/api/health', require('./routes/health'));
+app.use('/api/settings', require('./routes/settings'));
 app.get('/api/ping', (req, res) => res.json({ ok: true, ts: Date.now() }));
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Route inconnue' }));
@@ -30,7 +31,10 @@ app.use((err, req, res, next) => {
 
 app.listen(config.PORT, () => {
   console.log(`Smart API démarrée sur http://localhost:${config.PORT}`);
-  if (!config.ODBC_CONNECTION_STRING) {
-    console.warn('[config] ODBC_CONNECTION_STRING non défini — l\'explorateur ODBC ne fonctionnera pas');
+  const source = require('./db').connectionSource();
+  if (source.type === 'none') {
+    console.warn('[config] Aucune connexion HFSQL configurée — configurez-la dans l\'interface (Paramètres).');
+  } else {
+    console.log(`[config] Connexion HFSQL : ${source.description}`);
   }
 });

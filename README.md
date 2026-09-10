@@ -8,7 +8,7 @@ Application web pour explorer et consulter les données d'une base **HFSQL** (PC
 |--------|-------------|
 | Frontend | React 18 + Vite + TailwindCSS |
 | Backend | Node.js + Express |
-| BDD principale | HFSQL via ODBC (`node-odbc`) |
+| BDD principale | HFSQL via ODBC (`odbc`) |
 | BDD locale | SQLite (users, settings) |
 | Auth | JWT + bcrypt |
 | UI | TailwindCSS |
@@ -22,11 +22,22 @@ Application web pour explorer et consulter les données d'une base **HFSQL** (PC
 - **Export CSV** — depuis l'explorateur
 - **Auth JWT** — rôles admin/lecteur
 - **Dashboard** — vue d'ensemble de la connexion ODBC
-- **Paramètres** — profil utilisateur, statut ODBC
+- **Paramètres** — configuration de la connexion HFSQL (admin) + profil utilisateur
 
-## Configuration
+## Configuration de la connexion HFSQL
 
-### Variables d'environnement
+La connexion vers la base HFSQL se configure **depuis l'interface web** (menu **Paramètres**, réservé à l'admin) :
+
+- **Serveur** : adresse de la base HFSQL Client/Serveur
+- **Port** : port HFSQL (par défaut 4900)
+- **Identifiant / mot de passe**
+- **Base de données** (optionnel)
+- **Nom du pilote ODBC** (doit correspondre au pilote installé)
+- Bouton **"Tester la connexion"** avant d'enregistrer
+
+La configuration est stockée localement et prioritaire sur la variable d'environnement `ODBC_CONNECTION_STRING`.
+
+### Variable d'environnement alternative
 
 ```bash
 # Port de l'API
@@ -35,13 +46,21 @@ APP_PORT=3001
 # Secret JWT
 JWT_SECRET=votre-secret
 
-# Chaîne de connexion ODBC
-ODBC_CONNECTION_STRING=Driver={PCSoft HFSQL};Host=192.168.1.100;UID=admin;PWD=password;DATABASE=MaBase
+# Chaîne de connexion ODBC (alternative à la configuration UI)
+ODBC_CONNECTION_STRING=Driver={PCSoft HFSQL Client Server};Host=192.168.1.100;UID=admin;PWD=password;DATABASE=MaBase
 
 # Admin par défaut
 DEFAULT_ADMIN_USER=admin
 DEFAULT_ADMIN_PASS=admin123
 ```
+
+### À propos du pilote ODBC HFSQL
+
+Le pilote HFSQL est un composant **propriétaire PCSoft** :
+- Il n'est **pas** inclus dans l'image Docker (unixODBC l'est).
+- **Windows** : installé avec WinDev/WebDev, visible dans l'Administrateur ODBC → Pilotes.
+- **Linux** : le fichier `.so` du pilote doit être copié dans le conteneur (ex: volume) et déclaré dans `/etc/odbcinst.ini`.
+- L'application Node doit tourner dans la même architecture (32/64 bits) que le pilote installé.
 
 ### Développement local
 

@@ -1,12 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../api.js';
 import { useAuth } from '../App.jsx';
-import { Settings as SettingsIcon, CheckCircle, AlertTriangle, Save, UserCog } from 'lucide-react';
+import {
+  Settings as SettingsIcon,
+  CheckCircle,
+  AlertTriangle,
+  Save,
+  UserCog,
+  Plug,
+  Loader2,
+  Info
+} from 'lucide-react';
 
 export default function Settings() {
   const { user } = useAuth();
   const [health, setHealth] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const [hfsql, setHfsql] = useState({
+    host: '',
+    port: '',
+    uid: '',
+    pwd: '',
+    database: '',
+    driver: 'PCSoft HFSQL Client Server',
+    passwordSet: false,
+    source: null,
+    envFallback: false
+  });
+  const [hfsqlMsg, setHfsqlMsg] = useState({ type: '', text: '' });
+  const [testing, setTesting] = useState(false);
+  const [savingHfsql, setSavingHfsql] = useState(false);
+
   const [profileForm, setProfileForm] = useState({
     username: user?.username || '',
     email: user?.email || '',
@@ -18,8 +43,89 @@ export default function Settings() {
   const [msg, setMsg] = useState({ type: '', text: '' });
 
   useEffect(() => {
-    api.get('/health').then(setHealth).catch(() => setHealth({ odbc: { ok: false } })).finally(() => setLoading(false));
+    async function load() {
+      try {
+        const [h, s] = await Promise.all([
+          api.get('/health'),
+          api.get('/settings/hfsql')
+        ]);
+        setHealth(h);
+        setHfsql({
+          host: s.host || '',
+          port: s.port || '',
+          uid: s.uid || '',
+          pwd: '',
+          database: s.database || '',
+          driver: s.driver || 'PCSoft HFSQL Client Server',
+          passwordSet: !!s.passwordSet,
+          source: s.source || null,
+          envFallback: !!s.envFallback
+        });
+      } catch (err) {
+        setHealth({ odbc: { ok: false, message: err.message } });
+        setHfsqlMsg({ type: 'error', text: 'Impossible de charger la configuration : ' + err.message });
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
   }, []);
+
+  const cfgForTest = {
+    host: hfsql.host,
+    port: hfsql.port,
+    uid: hfsql.uid,
+    pwd: hfsql.pwd,
+    database: hfsql.database,
+    driver: hfsql.driver
+  };
+
+  async function handleTest(e) {
+    e.preventDefault();
+    setTesting(true);
+    setHfsqlMsg({ type: '', text: '' });
+    try {
+      const res = await api.post('/settings/hfsql/test', cfgForTest);
+      if (res.ok) {
+        setHfsqlMsg({ type: 'success', text: `Connexion réussie${res.latencyMs != null ? ` (${res.latencyMs} ms)` : ''}` });
+      } else {
+        setHfsqlMsg({ type: 'error', text: `Échec de la connexion : ${res.message}` });
+      }
+    } catch (err) {
+      setHfsqlMsg({ type: 'error', text: err.message });
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  async function handleSaveHfsql(e) {
+    e.preventDefault();
+    setSavingHfsql(true);
+    setHfsqlMsg({ type: '', text: '' });
+    try {
+      const body = {
+        host: hfsql.host,
+        port: hfsql.port,
+        uid: hfsql.uid,
+        database: hfsql.database,
+        driver: hfsql.driver
+      };
+      if (hfsql.pwd) body.pwd = hfsql.pwd;
+      const res = await api.put('/settings/hfsql', body);
+      setHfsql(f => ({ ...f, pwd: '', passwordSet: res.passwordSet }));
+      if (res.test?.ok) {
+        setHfsqlMsg({ type: 'success', text: 'Configuration enregistrée — connexion établie' });
+      } else {
+        setHfsqlMsg({ type: 'error', text: 'Configuration enregistrée, mais la connexion a échoué : ' + (res.test?.message || 'erreur inconnue') });
+      }
+      const h = await api.get('/health');
+      setHealth(h);
+    } catch (err) {
+      setHfsqlMsg({ type: 'error', text: err.message });
+    } finally {
+      setSavingHfsql(false);
+    }
+  }
 
   async function handleProfileSave(e) {
     e.preventDefault();
@@ -40,7 +146,7 @@ export default function Settings() {
         body.currentPassword = profileForm.currentPassword;
         body.newPassword = profileForm.newPassword;
       }
-      const updated = await api.put('/auth/profile', body);
+      await api.put('/auth/profile', body);
       setMsg({ type: 'success', text: 'Profil mis à jour' });
       setProfileForm(f => ({ ...f, currentPassword: '', newPassword: '', confirmPassword: '' }));
     } catch (err) {
@@ -58,6 +164,12 @@ export default function Settings() {
     );
   }
 
+  const srcDesc = (hfsql.source?.type === 'settings')
+    ? 'Configurée depuis cette page'
+    : (hfsql.source?.type === 'environment')
+      ? 'Définie via ODBC_CONNECTION_STRING (variable d\'environnement)'
+      : 'Aucune connexion configurée';
+
   return (
     <div>
       <div className="mb-6">
@@ -67,39 +179,138 @@ export default function Settings() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white border border-slate-200 rounded-xl p-5">
-          <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-4">
-            <SettingsIcon size={16} className="text-blue-600" />
-            Connexion ODBC
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-1">
+            <Plug size={16} className="text-blue-600" />
+            Connexion HFSQL
           </div>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-slate-500 w-24">Statut</span>
-              {health?.odbc?.ok ? (
-                <span className="inline-flex items-center gap-1.5 text-sm text-green-700 font-medium">
-                  <CheckCircle size={14} /> Connecté
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 text-sm text-amber-700 font-medium">
-                  <AlertTriangle size={14} /> Non connecté
-                </span>
-              )}
+
+          <div className="flex items-center gap-3 mb-4">
+            <span className="text-xs text-slate-500">Statut</span>
+            {health?.odbc?.ok ? (
+              <span className="inline-flex items-center gap-1.5 text-sm text-green-700 font-medium">
+                <CheckCircle size={14} /> Connecté
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 text-sm text-amber-700 font-medium">
+                <AlertTriangle size={14} /> Non connecté
+              </span>
+            )}
+            <span className="text-xs text-slate-400">— {srcDesc}</span>
+          </div>
+
+          {health?.odbc?.message && !health?.odbc?.ok && (
+            <div className="flex items-start gap-2 mb-4">
+              <span className="text-xs text-slate-500">Message :</span>
+              <span className="text-xs text-slate-600 bg-slate-50 rounded px-2 py-1 break-all">{health.odbc.message}</span>
             </div>
-            {health?.odbc?.message && (
-              <div className="flex items-start gap-3">
-                <span className="text-xs text-slate-500 w-24">Message</span>
-                <span className="text-xs text-slate-600 bg-slate-50 rounded px-2 py-1 break-all">{health.odbc.message}</span>
+          )}
+          {hfsql.envFallback && hfsql.source?.type === 'environment' && (
+            <div className="flex gap-2 items-start bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 mb-4">
+              <Info size={13} className="text-blue-600 mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-blue-800">
+                Une connexion est déjà définie via <code className="bg-blue-100 px-1 rounded">ODBC_CONNECTION_STRING</code>.
+                Renseigner les champs ci-dessous la remplacera.
+              </p>
+            </div>
+          )}
+
+          <form className="space-y-3" onSubmit={handleSaveHfsql}>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Serveur (hôte)</label>
+                <input
+                  type="text"
+                  value={hfsql.host}
+                  onChange={e => setHfsql(f => ({ ...f, host: e.target.value }))}
+                  placeholder="192.168.1.100"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Port</label>
+                <input
+                  type="text"
+                  value={hfsql.port}
+                  onChange={e => setHfsql(f => ({ ...f, port: e.target.value }))}
+                  placeholder="4900"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Nom d'utilisateur</label>
+                <input
+                  type="text"
+                  value={hfsql.uid}
+                  onChange={e => setHfsql(f => ({ ...f, uid: e.target.value }))}
+                  autoComplete="off"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  Mot de passe {hfsql.passwordSet ? <span className="font-normal text-slate-400">(laisser vide pour conserver)</span> : null}
+                </label>
+                <input
+                  type="password"
+                  value={hfsql.pwd}
+                  onChange={e => setHfsql(f => ({ ...f, pwd: e.target.value }))}
+                  autoComplete="new-password"
+                  placeholder={hfsql.passwordSet ? '••••••••' : ''}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Base de données (optionnel)</label>
+              <input
+                type="text"
+                value={hfsql.database}
+                onChange={e => setHfsql(f => ({ ...f, database: e.target.value }))}
+                placeholder="Nom de la base HFSQL"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Nom du pilote ODBC</label>
+              <input
+                type="text"
+                value={hfsql.driver}
+                onChange={e => setHfsql(f => ({ ...f, driver: e.target.value }))}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Doit correspondre au nom du pilote installé (Windows : Administrateur ODBC → Pilotes. Linux : /etc/odbcinst.ini).
+              </p>
+            </div>
+
+            {hfsqlMsg.text && (
+              <div className={`text-sm px-3 py-2 rounded-lg ${hfsqlMsg.type === 'error' ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
+                {hfsqlMsg.text}
               </div>
             )}
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-slate-500 w-24">Chaîne ODBC</span>
-              <span className={`text-xs font-medium ${health?.hasConnectionString ? 'text-green-700' : 'text-amber-700'}`}>
-                {health?.hasConnectionString ? 'Définie via variable d\'environnement' : 'Non définie (ODBC_CONNECTION_STRING)'}
-              </span>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleTest}
+                disabled={testing}
+                className="inline-flex items-center gap-1.5 border border-blue-200 text-blue-700 hover:bg-blue-50 text-sm font-semibold px-4 py-2 rounded-lg transition disabled:opacity-50"
+              >
+                {testing ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
+                Tester la connexion
+              </button>
+              <button
+                type="submit"
+                disabled={savingHfsql}
+                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition disabled:opacity-50"
+              >
+                {savingHfsql ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                Enregistrer
+              </button>
             </div>
-            <p className="text-xs text-slate-400 mt-3">
-              Pour configurer la connexion ODBC, définissez la variable <code className="bg-slate-100 px-1.5 py-0.5 rounded">ODBC_CONNECTION_STRING</code> dans votre fichier <code className="bg-slate-100 px-1.5 py-0.5 rounded">.env</code> ou dans docker-compose.yml.
-            </p>
-          </div>
+          </form>
         </div>
 
         <div className="bg-white border border-slate-200 rounded-xl p-5">
@@ -167,7 +378,7 @@ export default function Settings() {
               disabled={saving}
               className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition disabled:opacity-50"
             >
-              {saving ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save size={14} />}
+              {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
               Enregistrer
             </button>
           </form>

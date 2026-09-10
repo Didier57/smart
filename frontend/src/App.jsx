@@ -13,6 +13,14 @@ export function useAuth() {
   return useContext(AuthContext);
 }
 
+function RequireAdmin({ children }) {
+  const { user } = useAuth();
+  if (user?.role !== 'admin') {
+    return <Navigate to="/" replace />;
+  }
+  return children;
+}
+
 export default function App() {
   const [user, setUser] = useState(getStoredUser());
 
@@ -44,7 +52,7 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/explorer" element={<Explorer />} />
           <Route path="/explorer/:tableName" element={<Explorer />} />
-          <Route path="/settings" element={<Settings />} />
+          <Route path="/settings" element={<RequireAdmin><Settings /></RequireAdmin>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
