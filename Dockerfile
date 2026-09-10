@@ -39,6 +39,9 @@ ENV NODE_ENV=production
 ENV PORT=3001
 ENV TZ=Europe/Paris
 ENV LD_LIBRARY_PATH=/opt/hfsql-odbc/lib
+# Base SQLite locale (users/settings) : DOIT vivre dans le volume /app/backend/data
+# même si la stack ne définit pas la variable (DockHand, etc.).
+ENV LOCAL_DB_PATH=/app/backend/data/smart-local.db
 EXPOSE 3001
 
 WORKDIR /app/backend

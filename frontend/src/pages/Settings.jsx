@@ -27,7 +27,8 @@ export default function Settings() {
     driver: 'HFSQL',
     passwordSet: false,
     source: null,
-    envFallback: false
+    envFallback: false,
+    dbPath: ''
   });
   const [hfsqlMsg, setHfsqlMsg] = useState({ type: '', text: '' });
   const [testing, setTesting] = useState(false);
@@ -61,7 +62,8 @@ export default function Settings() {
           driver: s.driver || 'HFSQL',
           passwordSet: !!s.passwordSet,
           source: s.source || null,
-          envFallback: !!s.envFallback
+          envFallback: !!s.envFallback,
+          dbPath: s.dbPath || ''
         });
       } catch (err) {
         setHealth({ odbc: { ok: false, message: err.message } });
@@ -332,6 +334,12 @@ export default function Settings() {
             <p className="text-[11px] text-slate-400">
               Chaque clic (« Tester la connexion » ou « Enregistrer ») enregistre les paramètres puis teste la connexion.
             </p>
+            {hfsql.dbPath && (
+              <p className="text-[11px] text-slate-400 flex items-center gap-1">
+                <Info size={11} />
+                Stockage des paramètres : <code className="bg-slate-100 px-1 rounded break-all">{hfsql.dbPath}</code>
+              </p>
+            )}
           </form>
         </div>
 

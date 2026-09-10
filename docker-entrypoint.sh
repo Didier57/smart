@@ -41,4 +41,14 @@ fi
 # Bibliothèques WinDev (wd*.so) au chargement
 export LD_LIBRARY_PATH="${DRIVER_DIR}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 
+# Base SQLite locale (users/settings) : garantir qu'elle vit dans le volume
+# monté sur /app/backend/data, même si la stack ne définit pas la variable.
+if [ -z "${LOCAL_DB_PATH:-}" ]; then
+  export LOCAL_DB_PATH="/app/backend/data/smart-local.db"
+  echo "[entrypoint] LOCAL_DB_PATH non défini -> $LOCAL_DB_PATH"
+else
+  echo "[entrypoint] LOCAL_DB_PATH=$LOCAL_DB_PATH"
+fi
+mkdir -p "$(dirname "$LOCAL_DB_PATH")"
+
 exec "$@"

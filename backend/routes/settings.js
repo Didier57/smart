@@ -3,6 +3,7 @@ const { requireAuth, requireAdmin } = require('../auth');
 const settings = require('../settings');
 const odbc = require('../db');
 const config = require('../config');
+const dbLocal = require('../db-local');
 
 const router = express.Router();
 
@@ -19,7 +20,8 @@ router.get('/hfsql', (req, res) => {
     driver: cfg.driver,
     passwordSet: Boolean(cfg.pwd),
     source: odbc.connectionSource(),
-    envFallback: Boolean(config.ODBC_CONNECTION_STRING)
+    envFallback: Boolean(config.ODBC_CONNECTION_STRING),
+    dbPath: dbLocal.name
   });
 });
 
