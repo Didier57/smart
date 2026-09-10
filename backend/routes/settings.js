@@ -39,6 +39,9 @@ router.post('/hfsql/test', async (req, res) => {
   if (!connStr) {
     return res.status(400).json({ ok: false, error: 'Veuillez renseigner soit un DSN, soit le pilote et le serveur' });
   }
+  if (!cfg.dsn && !cfg.database) {
+    return res.json({ ok: false, message: 'Le nom de la base de données est obligatoire (HFSQL Client/Serveur) — renseignez le champ « Base de données ».' });
+  }
   const result = await odbc.testConnectionString(connStr);
   res.json(result);
 });

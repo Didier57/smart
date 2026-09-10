@@ -281,14 +281,19 @@ export default function Settings() {
               </div>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Base de données (optionnel)</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
+                Base de données <span className="font-normal text-red-500">(obligatoire)</span>
+              </label>
               <input
                 type="text"
                 value={hfsql.database}
                 onChange={e => setHfsql(f => ({ ...f, database: e.target.value }))}
-                placeholder="Nom de la base HFSQL"
+                placeholder="Nom de la base HFSQL sur le serveur"
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
               />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Nom de la base créée sur le serveur HFSQL (obligatoire en mode Client/Serveur — le driver refuse une chaîne sans base).
+              </p>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Nom du pilote ODBC</label>

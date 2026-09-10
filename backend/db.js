@@ -29,6 +29,21 @@ async function connectWith(connStr) {
   return odbc.connect(connStr);
 }
 
+function formatOdbcError(err) {
+  if (!err) return 'Erreur inconnue';
+  const odbcErrors = err.odbcErrors;
+  if (Array.isArray(odbcErrors) && odbcErrors.length) {
+    return odbcErrors
+      .map(e => {
+        const state = e.state || '';
+        const msg = (e.message || '').replace(/[\[\]]/g, m => (m === '[' ? '(' : ')'));
+        return [state, msg].filter(Boolean).join(' ');
+      })
+      .join(' | ');
+  }
+  return err.message || String(err);
+}
+
 async function getConnection() {
   const connStr = resolveConnectionString();
   if (!connStr) {
@@ -75,7 +90,7 @@ async function testConnection() {
     return { ok: true, message: 'Connexion ODBC active' };
   } catch (err) {
     pool = null;
-    return { ok: false, message: err.message };
+    return { ok: false, message: formatOdbcError(err) };
   } finally {
     if (conn && conn !== pool) {
       try { await conn.close(); } catch {}
@@ -92,7 +107,7 @@ async function testConnectionString(connStr) {
     await conn.query('SELECT 1');
     return { ok: true, message: 'Connexion réussie', latencyMs: Date.now() - start };
   } catch (err) {
-    return { ok: false, message: err.message, latencyMs: Date.now() - start };
+    return { ok: false, message: formatOdbcError(err), latencyMs: Date.now() - start };
   } finally {
     if (conn) {
       try { await conn.close(); } catch {}
@@ -122,5 +137,6 @@ module.exports = {
   close,
   resolveConnectionString,
   canResolveConnectionString,
-  connectionSource
+  connectionSource,
+  formatOdbcError
 };
