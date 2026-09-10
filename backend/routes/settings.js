@@ -62,9 +62,11 @@ router.put('/hfsql', async (req, res) => {
   });
 
   await odbc.reset();
-  const test = await odbc.testConnection();
 
-  res.json({ ok: true, test, passwordSet: Boolean(newPwd) });
+  const savedCfg = settings.getHfsqlConfig();
+  const test = await odbc.testConnectionString(settings.buildConnectionString(savedCfg));
+
+  res.json({ ok: true, saved: true, test, passwordSet: Boolean(newPwd) });
 });
 
 module.exports = router;

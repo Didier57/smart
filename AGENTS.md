@@ -50,3 +50,6 @@
 - GitHub Actions construit l'image `ghcr.io/didier57/smart:latest`.
 - Le serveur: `docker compose pull && docker compose up -d --force-recreate`.
 - Variable requise: `JWT_SECRET`. La connexion HFSQL se fait via l'interface.
+- Le PUT `/api/settings/hfsql` **enregistre en SQLite AVANT** tout test et répond toujours rapidement : test de connexion avec **timeout 20 s** (le driver HFSQL peut bloquer). « Tester la connexion » et « Enregistrer » **persistent tous les deux** la configuration puis retournent le résultat du test.
+- En cas d'échec de connexion, le message est enrichi d'un **détail iODBC** (`iodbctest`, présent dans l'image) qui remonte le vrai texte du driver (ex : `08001 <ARCHIVES> file already defined` = « Le fichier est déjà décrit », erreur 70207 : tables dont les noms ne diffèrent que par un caractère accentué, ou fichier déjà ouvert par une autre session serveur — non corrigeable depuis l'app).
+- `Driver=/chemin/vers/xxx.so` (chemin absolu) est accepté **sans accolades** ; `Driver={Nom}` pour un pilote enregistré dans `/etc/odbcinst.ini` (`HFSQL` sur Linux).

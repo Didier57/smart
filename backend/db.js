@@ -1,6 +1,9 @@
 const odbc = require('odbc');
+const { execFile } = require('child_process');
 const config = require('./config');
 const settings = require('./settings');
+
+const CONNECT_TIMEOUT_MS = 20000;
 
 let pool = null;
 
@@ -29,19 +32,69 @@ async function connectWith(connStr) {
   return odbc.connect(connStr);
 }
 
+function withTimeout(promise, ms, label) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(label)), ms);
+    promise.then(
+      v => { clearTimeout(timer); resolve(v); },
+      e => { clearTimeout(timer); reject(e); }
+    );
+  });
+}
+
+function explainDriverError(text) {
+  const low = text.toLowerCase();
+  if (
+    low.includes('already defined') ||
+    low.includes('déjà décrit') ||
+    low.includes('deja decrit') ||
+    low.includes('already exists')
+  ) {
+    return `${text} — Fichier déjà décrit : le pilote HFSQL ne peut pas décrire deux fois le même fichier (erreur 70207). Cause fréquente : deux tables de la base dont les noms ne diffèrent que par un caractère accentué, ou un fichier déjà ouvert par une autre session sur ce serveur. Vérifiez la base côté serveur HFSQL.`;
+  }
+  return text;
+}
+
 function formatOdbcError(err) {
   if (!err) return 'Erreur inconnue';
+  let text;
   const odbcErrors = err.odbcErrors;
   if (Array.isArray(odbcErrors) && odbcErrors.length) {
-    return odbcErrors
+    text = odbcErrors
       .map(e => {
         const state = e.state || '';
-        const msg = (e.message || '').replace(/[\[\]]/g, m => (m === '[' ? '(' : ')'));
+        const msg = (e.message || '').replace(/[[\]]/g, m => (m === '[' ? '(' : ')'));
         return [state, msg].filter(Boolean).join(' ');
       })
       .join(' | ');
+  } else {
+    text = err.message || String(err);
   }
-  return err.message || String(err);
+  return explainDriverError(text);
+}
+
+function scrubPwd(text) {
+  return String(text).replace(/PWD=[^;\s]*/gi, 'PWD=***');
+}
+
+function driverDetail(connStr) {
+  return new Promise(resolve => {
+    execFile('iodbctest', [scrubPwd(connStr)], {
+      timeout: 8000,
+      maxBuffer: 32 * 1024
+    }, (error, stdout, stderr) => {
+      try {
+        const text = `${stdout || ''}\n${stderr || ''}`;
+        const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+        const pick = lines.find(l =>
+          /(already defined|déjà décrit|deja decrit|SQLSTATE=|file not found|can't open)/i.test(l)
+        );
+        resolve(pick ? scrubPwd(pick) : '');
+      } catch {
+        resolve('');
+      }
+    });
+  });
 }
 
 async function getConnection() {
@@ -85,9 +138,14 @@ async function testConnection() {
   }
   let conn;
   try {
-    conn = await connectWith(connStr);
-    await conn.query('SELECT 1');
-    return { ok: true, message: 'Connexion ODBC active' };
+    conn = await withTimeout(connectWith(connStr), CONNECT_TIMEOUT_MS, 'Délai de connexion dépassé — le serveur ne répond pas ou le pilote bloque');
+    let note = '';
+    try {
+      await conn.query('SELECT 1');
+    } catch {
+      note = ' (connexion établie, mais SELECT 1 refusé par le pilote)';
+    }
+    return { ok: true, message: 'Connexion ODBC active' + note };
   } catch (err) {
     pool = null;
     return { ok: false, message: formatOdbcError(err) };
@@ -103,11 +161,21 @@ async function testConnectionString(connStr) {
   const start = Date.now();
   let conn;
   try {
-    conn = await connectWith(connStr);
-    await conn.query('SELECT 1');
-    return { ok: true, message: 'Connexion réussie', latencyMs: Date.now() - start };
+    conn = await withTimeout(connectWith(connStr), CONNECT_TIMEOUT_MS, 'Délai de connexion dépassé — le serveur ne répond pas ou le pilote bloque');
+    let note = '';
+    try {
+      await conn.query('SELECT 1');
+    } catch {
+      note = ' (connexion établie, mais SELECT 1 refusé par le pilote)';
+    }
+    return { ok: true, message: 'Connexion réussie' + note, latencyMs: Date.now() - start };
   } catch (err) {
-    return { ok: false, message: formatOdbcError(err), latencyMs: Date.now() - start };
+    let message = formatOdbcError(scrubPwd(err));
+    const detail = await driverDetail(connStr);
+    if (detail) {
+      message = `${message} — (détail iODBC : ${detail})`;
+    }
+    return { ok: false, message, latencyMs: Date.now() - start };
   } finally {
     if (conn) {
       try { await conn.close(); } catch {}

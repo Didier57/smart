@@ -73,27 +73,39 @@ export default function Settings() {
     load();
   }, []);
 
-  const cfgForTest = {
-    dsn: hfsql.dsn,
-    host: hfsql.host,
-    port: hfsql.port,
-    uid: hfsql.uid,
-    pwd: hfsql.pwd,
-    database: hfsql.database,
-    driver: hfsql.driver
-  };
+  async function submitConfig() {
+    const body = {
+      dsn: hfsql.dsn,
+      host: hfsql.host,
+      port: hfsql.port,
+      uid: hfsql.uid,
+      database: hfsql.database,
+      driver: hfsql.driver
+    };
+    if (hfsql.pwd) body.pwd = hfsql.pwd;
+    const res = await api.put('/settings/hfsql', body);
+    setHfsql(f => ({ ...f, pwd: '', passwordSet: res.passwordSet }));
+    if (res.test?.ok) {
+      setHfsqlMsg({
+        type: 'success',
+        text: `Configuration enregistrée — connexion établie${res.test.latencyMs != null ? ` (${res.test.latencyMs} ms)` : ''}`
+      });
+    } else {
+      setHfsqlMsg({
+        type: 'error',
+        text: 'Configuration enregistrée, mais la connexion a échoué : ' + (res.test?.message || 'erreur inconnue')
+      });
+    }
+    const h = await api.get('/health');
+    setHealth(h);
+  }
 
   async function handleTest(e) {
     e.preventDefault();
     setTesting(true);
     setHfsqlMsg({ type: '', text: '' });
     try {
-      const res = await api.post('/settings/hfsql/test', cfgForTest);
-      if (res.ok) {
-        setHfsqlMsg({ type: 'success', text: `Connexion réussie${res.latencyMs != null ? ` (${res.latencyMs} ms)` : ''}` });
-      } else {
-        setHfsqlMsg({ type: 'error', text: `Échec de la connexion : ${res.message}` });
-      }
+      await submitConfig();
     } catch (err) {
       setHfsqlMsg({ type: 'error', text: err.message });
     } finally {
@@ -106,24 +118,7 @@ export default function Settings() {
     setSavingHfsql(true);
     setHfsqlMsg({ type: '', text: '' });
     try {
-      const body = {
-        dsn: hfsql.dsn,
-        host: hfsql.host,
-        port: hfsql.port,
-        uid: hfsql.uid,
-        database: hfsql.database,
-        driver: hfsql.driver
-      };
-      if (hfsql.pwd) body.pwd = hfsql.pwd;
-      const res = await api.put('/settings/hfsql', body);
-      setHfsql(f => ({ ...f, pwd: '', passwordSet: res.passwordSet }));
-      if (res.test?.ok) {
-        setHfsqlMsg({ type: 'success', text: 'Configuration enregistrée — connexion établie' });
-      } else {
-        setHfsqlMsg({ type: 'error', text: 'Configuration enregistrée, mais la connexion a échoué : ' + (res.test?.message || 'erreur inconnue') });
-      }
-      const h = await api.get('/health');
-      setHealth(h);
+      await submitConfig();
     } catch (err) {
       setHfsqlMsg({ type: 'error', text: err.message });
     } finally {
@@ -334,6 +329,9 @@ export default function Settings() {
                 Enregistrer
               </button>
             </div>
+            <p className="text-[11px] text-slate-400">
+              Chaque clic (« Tester la connexion » ou « Enregistrer ») enregistre les paramètres puis teste la connexion.
+            </p>
           </form>
         </div>
 
