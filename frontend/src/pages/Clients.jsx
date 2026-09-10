@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { api } from '../api.js';
 import { useAuth } from '../App.jsx';
 import { Search, ArrowUp, ArrowDown, ArrowUpDown, Filter, RotateCcw, Users, Pencil, Plus, FileText, X, Save, Loader2 } from 'lucide-react';
@@ -113,7 +113,6 @@ export default function Clients() {
   const [colWidths, setColWidths] = useState(loadWidths);
   const [editingClient, setEditingClient] = useState(null);
   const [contractModal, setContractModal] = useState(null);
-  const resizeRef = useRef(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setSearchDebounce(search), 300);
@@ -122,25 +121,6 @@ export default function Clients() {
 
   useEffect(() => {
     api.get('/clients').then(setData).catch(e => setError(e.message)).finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
-    function onMove(e) {
-      if (!resizeRef.current) return;
-      const { colKey, startX, startW } = resizeRef.current;
-      const w = Math.max(50, startW + (e.clientX - startX));
-      setColWidths(prev => {
-        const next = { ...prev, [colKey]: w };
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
-        return next;
-      });
-    }
-    function onUp() {
-      if (resizeRef.current) { resizeRef.current = null; document.body.style.cursor = ''; document.body.style.userSelect = ''; }
-    }
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-    return () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
   }, []);
 
   const uniqueValues = useCallback((colKey) => {
@@ -182,8 +162,24 @@ export default function Clients() {
 
   function onResizeStart(e, colKey) {
     e.preventDefault(); e.stopPropagation();
-    resizeRef.current = { colKey, startX: e.clientX, startW: colWidths[colKey] || 150 };
+    const startX = e.clientX;
+    const startW = colWidths[colKey] || 150;
     document.body.style.cursor = 'col-resize'; document.body.style.userSelect = 'none';
+    function onMove(ev) {
+      const w = Math.max(50, startW + (ev.clientX - startX));
+      setColWidths(prev => {
+        const next = { ...prev, [colKey]: w };
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); } catch {}
+        return next;
+      });
+    }
+    function onUp() {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = ''; document.body.style.userSelect = '';
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
   }
 
   async function handleContractSaved({ newContractId }) {
