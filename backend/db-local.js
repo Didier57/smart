@@ -8,6 +8,8 @@ const DB_PATH = process.env.LOCAL_DB_PATH || path.join(__dirname, 'smart-local.d
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 const db = new Database(DB_PATH);
 
+console.log(`[db-local] Base SQLite locale : ${DB_PATH}`);
+
 db.pragma('journal_mode = WAL');
 
 db.exec(`
