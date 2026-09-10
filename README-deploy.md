@@ -41,9 +41,9 @@ Le conteneur (`entrypoint`) installe le driver **tout seul** au premier démarra
 
 1. Détecte une archive `*.zip` dans `/opt/hfsql-odbc` (le volume `./hfsql-odbc`);
 2. L'extrait dans `/opt/hfsql-odbc/lib`;
-3. Lance `./install.sh` qui enregistre le pilote **`HFSQL`** dans `/etc/odbcinst.ini`
-   (lisible à la fois par iODBC et unixODBC);
-4. Expose `/opt/hfsql-odbc/lib` via `LD_LIBRARY_PATH` (les `wd290*.so` WinDev).
+3. Détecte automatiquement le driver (`*hfo64.so`, nom variable selon la version du pack)
+   et enregistre la section **`[HFSQL]`** directement dans `/etc/odbcinst.ini`;
+4. Expose `/opt/hfsql-odbc/lib` via `LD_LIBRARY_PATH` (les `wd*.so` WinDev).
 
 Il suffit ensuite, dans l'application (Paramètres), de renseigner :
 **Nom du pilote** = `HFSQL`, **Serveur** (IP de la base HFSQL), **Port** (défaut 4900),
