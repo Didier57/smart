@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState } from 'react';
 import { Navigate, Routes, Route } from 'react-router-dom';
 import { getStoredUser, clearSession } from './api.js';
 import Login from './pages/Login.jsx';
+import Clients from './pages/Clients.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Explorer from './pages/Explorer.jsx';
 import Settings from './pages/Settings.jsx';
@@ -49,9 +50,10 @@ export default function App() {
     <AuthContext.Provider value={{ user, login, logout, updateUser }}>
       <Routes>
         <Route element={<Layout />}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/explorer" element={<Explorer />} />
-          <Route path="/explorer/:tableName" element={<Explorer />} />
+          <Route path="/" element={<Clients />} />
+          <Route path="/dashboard" element={<RequireAdmin><Dashboard /></RequireAdmin>} />
+          <Route path="/explorer" element={<RequireAdmin><Explorer /></RequireAdmin>} />
+          <Route path="/explorer/:tableName" element={<RequireAdmin><Explorer /></RequireAdmin>} />
           <Route path="/settings" element={<RequireAdmin><Settings /></RequireAdmin>} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
