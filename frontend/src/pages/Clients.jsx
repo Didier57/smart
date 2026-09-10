@@ -215,7 +215,7 @@ export default function Clients() {
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-xl">
         <div className="overflow-x-auto max-h-[75vh]">
           <table className="w-full text-sm border-collapse">
             <thead className="bg-slate-50 sticky top-0 z-10">
@@ -237,7 +237,8 @@ export default function Clients() {
                       <ColumnFilterDropdown values={uniqueValues(col.key)} selected={filters[col.key] || new Set()}
                         onToggle={v => toggleFilterValue(col.key, v)} onSelectAll={() => selectAllFilter(col.key)} onClear={() => clearFilter(col.key)} onClose={() => setOpenFilter(null)} />
                     )}
-                    <div className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-blue-400 z-40 opacity-0 group-hover:opacity-100 transition"
+                    <div
+                      style={{ position: 'absolute', top: 0, right: -4, width: 9, height: '100%', cursor: 'col-resize', zIndex: 40 }}
                       onMouseDown={e => onResizeStart(e, col.key)} />
                   </th>
                 ))}
