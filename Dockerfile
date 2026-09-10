@@ -6,6 +6,20 @@ RUN npm ci --prefix frontend
 COPY frontend ./frontend
 RUN npm run build --prefix frontend
 
+# Étape 1b : compilation du helper hfcli (pont iODBC).
+# Le pilote ODBC HFSQL ne fonctionne qu'avec iODBC (node-odbc = unixODBC echoue :
+# erreur corrompue "0 U"). Pas de conflit ici : ce stage ne contient pas
+# unixodbc-dev (conflit Debian libiodbc2-dev <-> unixodbc-dev).
+FROM debian:bookworm-slim AS hfcli-build
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libc6-dev \
+    libiodbc2-dev \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+COPY backend/hfcli/hfcli.c .
+RUN mkdir -p /out && gcc -O2 -Wall -o /out/hfcli hfcli.c -I/usr/include/iodbc -liodbc
+
 # Étape 2 : runtime Node (API + frontend buildé)
 FROM node:20-slim AS runtime
 WORKDIR /app
@@ -28,6 +42,9 @@ COPY backend/package*.json ./backend/
 RUN npm ci --prefix backend
 COPY backend ./backend
 COPY --from=frontend /app/frontend/dist ./frontend/dist
+
+# Helper iODBC (pont HFSQL) compilé à l'étape 1b
+COPY --from=hfcli-build /out/hfcli /usr/local/bin/hfcli
 
 # Entrypoint : installe le driver ODBC HFSQL (pack *.zip monté dans /opt/hfsql-odbc)
 # puis prépare LD_LIBRARY_PATH pour les bibliothèques WinDev (wd290*.so).

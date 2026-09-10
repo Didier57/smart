@@ -1,11 +1,45 @@
 const odbc = require('odbc');
+const fs = require('fs');
 const { execFile } = require('child_process');
+const { promisify } = require('util');
 const config = require('./config');
 const settings = require('./settings');
 
 const CONNECT_TIMEOUT_MS = 20000;
 
 let pool = null;
+
+/* Le pilote ODBC HFSQL (PCSoft) sous Linux ne fonctionne qu'avec iODBC ;
+ * node-odbc repose sur unixODBC et renvoie une erreur corrompue ("0 U").
+ * Sous Linux on passe donc par un petit helper C compilé contre iODBC
+ * (backend/hfcli/hfcli.c, compilé dans l'image Docker). node-odbc reste
+ * utilisé en secours (développement local Windows, image sans hfcli). */
+const HFCLI =
+  process.platform === 'linux' && fs.existsSync('/usr/local/bin/hfcli')
+    ? '/usr/local/bin/hfcli'
+    : null;
+const execFileAsync = promisify(execFile);
+
+async function hfcliRun(connStr, args, timeoutMs) {
+  if (!connStr) {
+    throw new Error('Connexion HFSQL non configurée — configurez-la dans Paramètres ou définissez ODBC_CONNECTION_STRING');
+  }
+  try {
+    const { stdout } = await execFileAsync(HFCLI, [connStr, ...args], {
+      timeout: timeoutMs || 60000,
+      maxBuffer: 256 * 1024 * 1024,
+      windowsHide: true
+    });
+    return JSON.parse(stdout);
+  } catch (err) {
+    if (err && err.stdout) {
+      try {
+        return JSON.parse(err.stdout);
+      } catch {}
+    }
+    throw new Error(err.message || String(err));
+  }
+}
 
 function resolveConnectionString() {
   if (settings.hasHostConfigured()) {
@@ -19,13 +53,14 @@ function canResolveConnectionString() {
 }
 
 function connectionSource() {
+  const engine = HFCLI ? 'iODBC (hfcli)' : 'node-odbc / unixODBC';
   if (settings.hasHostConfigured()) {
-    return { type: 'settings', description: 'Configurée depuis l\'interface (Paramètres)' };
+    return { type: 'settings', description: 'Configurée depuis l\'interface (Paramètres)', engine };
   }
   if (config.ODBC_CONNECTION_STRING) {
-    return { type: 'environment', description: 'Définie via ODBC_CONNECTION_STRING' };
+    return { type: 'environment', description: 'Définie via ODBC_CONNECTION_STRING', engine };
   }
-  return { type: 'none', description: 'Aucune connexion configurée' };
+  return { type: 'none', description: 'Aucune connexion configurée', engine };
 }
 
 async function connectWith(connStr) {
@@ -118,11 +153,22 @@ async function getConnection() {
 }
 
 async function query(sql, params = []) {
+  if (HFCLI) {
+    const args = ['query', sql, ...params.map(p => (p == null ? '\x03NULL' : String(p)))];
+    const res = await hfcliRun(resolveConnectionString(), args, 120000);
+    if (!res.ok) throw new Error(explainDriverError(res.message || 'Échec de la requête'));
+    return res.rows;
+  }
   const conn = await getConnection();
   return conn.query(sql, params);
 }
 
 async function tables(catalog, schema) {
+  if (HFCLI) {
+    const res = await hfcliRun(resolveConnectionString(), ['tables'], 60000);
+    if (!res.ok) throw new Error(explainDriverError(res.message || 'Échec de la liste des tables'));
+    return res.rows;
+  }
   const conn = await getConnection();
   const opts = {};
   if (catalog) opts.catalog = catalog;
@@ -131,6 +177,11 @@ async function tables(catalog, schema) {
 }
 
 async function columns(catalog, schema, table) {
+  if (HFCLI) {
+    const res = await hfcliRun(resolveConnectionString(), ['columns', table || ''], 60000);
+    if (!res.ok) throw new Error(explainDriverError(res.message || 'Échec de la liste des colonnes'));
+    return res.rows;
+  }
   const conn = await getConnection();
   const opts = {};
   if (catalog) opts.catalog = catalog;
@@ -144,29 +195,24 @@ async function testConnection() {
   if (!connStr) {
     return { ok: false, message: 'Aucune connexion HFSQL configurée — allez dans Paramètres' };
   }
-  let conn;
-  try {
-    conn = await withTimeout(connectWith(connStr), CONNECT_TIMEOUT_MS, 'Délai de connexion dépassé — le serveur ne répond pas ou le pilote bloque');
-    let note = '';
-    try {
-      await conn.query('SELECT 1');
-    } catch {
-      note = ' (connexion établie, mais SELECT 1 refusé par le pilote)';
-    }
-    return { ok: true, message: 'Connexion ODBC active' + note };
-  } catch (err) {
-    pool = null;
-    return { ok: false, message: formatOdbcError(err) };
-  } finally {
-    if (conn && conn !== pool) {
-      try { await conn.close(); } catch {}
-    }
-  }
+  return testConnectionString(connStr);
 }
 
 async function testConnectionString(connStr) {
   if (!connStr) return { ok: false, message: 'Chaîne de connexion vide' };
   const start = Date.now();
+  if (HFCLI) {
+    try {
+      const res = await hfcliRun(connStr, ['test'], CONNECT_TIMEOUT_MS + 10000);
+      return {
+        ok: Boolean(res.ok),
+        message: scrubPwd(res.ok ? res.message : explainDriverError(res.message || 'Échec de connexion')),
+        latencyMs: typeof res.latencyMs === 'number' ? res.latencyMs : Date.now() - start
+      };
+    } catch (err) {
+      return { ok: false, message: scrubPwd(err.message), latencyMs: Date.now() - start };
+    }
+  }
   let conn;
   try {
     conn = await withTimeout(connectWith(connStr), CONNECT_TIMEOUT_MS, 'Délai de connexion dépassé — le serveur ne répond pas ou le pilote bloque');
