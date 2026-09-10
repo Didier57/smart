@@ -28,11 +28,12 @@ Application web pour explorer et consulter les données d'une base **HFSQL** (PC
 
 La connexion vers la base HFSQL se configure **depuis l'interface web** (menu **Paramètres**, réservé à l'admin) :
 
+- **Source de données (DSN)** : mode documenté par PCSoft sous Linux (prioritaire)
 - **Serveur** : adresse de la base HFSQL Client/Serveur
 - **Port** : port HFSQL (par défaut 4900)
 - **Identifiant / mot de passe**
 - **Base de données** (optionnel)
-- **Nom du pilote ODBC** (doit correspondre au pilote installé)
+- **Nom du pilote ODBC** (ou chemin du `.so` sous Linux)
 - Bouton **"Tester la connexion"** avant d'enregistrer
 
 La configuration est stockée localement et prioritaire sur la variable d'environnement `ODBC_CONNECTION_STRING`.
@@ -56,11 +57,13 @@ DEFAULT_ADMIN_PASS=admin123
 
 ### À propos du pilote ODBC HFSQL
 
-Le pilote HFSQL est un composant **propriétaire PCSoft** :
-- Il n'est **pas** inclus dans l'image Docker (unixODBC l'est).
+Le pilote HFSQL est un composant **propriétaire PCSoft** et son installation est **manuelle** :
+- Il n'est **pas** inclus dans l'image Docker (seuls les managers ODBC le sont : unixODBC pour node-odbc, iODBC requis par le driver Linux).
 - **Windows** : installé avec WinDev/WebDev, visible dans l'Administrateur ODBC → Pilotes.
-- **Linux** : le fichier `.so` du pilote doit être copié dans le conteneur (ex: volume) et déclaré dans `/etc/odbcinst.ini`.
+- **Linux** : archive `wxpackodbclinux64.zip` (répertoire `INSTALL\ODBC` de l'installation WinDev/WebDev), à dézipper puis installer via `./install.sh` (enregistrement auprès d'iODBC), source à configurer dans `~/.odbc.ini`.
 - L'application Node doit tourner dans la même architecture (32/64 bits) que le pilote installé.
+
+Consultez **`README-deploy.md`** pour les étapes détaillées d'installation du driver (Windows et Linux/Docker).
 
 ### Développement local
 

@@ -22,22 +22,24 @@
 - Les users/settings sont stockés en SQLite local (`smart-local.db`), la base HFSQL est en lecture seule via ODBC
 - Compte admin par défaut: `admin / admin123`
 - L'explorateur découvre automatiquement les tables/colonnes via `odbc.tables()` et `odbc.columns()`
-- La connexion HFSQL se configure dans **Paramètres** (admin) : serveur (hôte), port, identifiant, mot de passe, base, nom du pilote ODBC + bouton "Tester la connexion". Le mot de passe est stocké localement (SQLite) et masqué dans l'UI. La config est prioritaire sur `ODBC_CONNECTION_STRING`.
-- Le pilote ODBC HFSQL (PCSoft) est **propriétaire** : il n'est PAS inclus dans l'image Docker (seul unixODBC l'est). Il doit être installé/enregistré sur la machine qui exécute l'app :
+- La connexion HFSQL se configure dans **Paramètres** (admin) : serveur (hôte), port, identifiant, mot de passe, base, nom du pilote ODBC OU **DSN** + bouton "Tester la connexion". Le mot de passe est stocké localement (SQLite) et masqué dans l'UI. La config est prioritaire sur `ODBC_CONNECTION_STRING`. Un DSN renseigné est prioritaire sur les champs serveur/pilote.
+- Le pilote ODBC HFSQL (PCSoft) est **propriétaire** : il n'est PAS inclus dans l'image Docker (seuls unixODBC — pour node-odbc — et iODBC — manager requis par le driver Linux — l'y sont). L'installation est **manuelle**, voir `README-deploy.md` :
   - Windows : installé avec WinDev/WebDev, voir Administrateur ODBC → Pilotes.
-  - Linux : fichier `.so` + déclaration dans `/etc/odbcinst.ini`.
+  - Linux : archive `wxpackodbclinux64.zip` (répertoire `INSTALL\ODBC` de WinDev) + `./install.sh` (enregistre auprès d'iODBC) + DSN dans `~/.odbc.ini`.
+  - Réf. PCSoft : https://doc.pcsoft.fr/fr-FR/?9000160
   - Node doit tourner dans la même architecture (32/64 bits) que le pilote.
 
 ## Architecture
 - `backend/db.js` — Connexion/pool ODBC (relié à HFSQL), résolution de chaîne depuis les settings ou l'env
 - `backend/db-local.js` — SQLite local (users, settings)
-- `backend/settings.js` — lecture/écriture des réglages + construction de la chaîne ODBC
+- `backend/settings.js` — lecture/écriture des réglages + construction de la chaîne ODBC (DSN ou Driver/Server/UID/PWD)
 - `backend/routes/settings.js` — GET/PUT `/api/settings/hfsql` + POST `/api/settings/hfsql/test`
 - `backend/routes/explorer.js` — CRUD read-only sur les tables HFSQL
 - `backend/routes/export.js` — Export CSV des tables
 - `backend/routes/auth.js` — Login JWT + profil
 - `frontend/src/pages/Explorer.jsx` — Explorateur interactif de tables
-- `frontend/src/pages/Settings.jsx` — Connexion HFSQL (admin) + profil
+- `frontend/src/pages/Settings.jsx` — Connexion HFSQL (admin, mode DSN ou champs) + profil
+- `README-deploy.md` — installation MANUELLE du driver ODBC HFSQL (iODBC + wxpackodbclinux64.zip)
 
 ## Déploiement
 - Après les tests locaux: `git add -A && git commit -m "..." && git push` sur `main`.

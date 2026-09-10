@@ -16,3 +16,5 @@ services:
       - TZ=Europe/Paris
     volumes:
       - ${DATA_DIR:-./data}:/app/backend/data
+      # Pilote ODBC HFSQL (installation MANUELLE requise, voir README-deploy.md)
+      - ${HFSQL_ODBC_DIR:-./hfsql-odbc}:/opt/hfsql-odbc

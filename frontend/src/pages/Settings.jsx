@@ -18,6 +18,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
 
   const [hfsql, setHfsql] = useState({
+    dsn: '',
     host: '',
     port: '',
     uid: '',
@@ -51,6 +52,7 @@ export default function Settings() {
         ]);
         setHealth(h);
         setHfsql({
+          dsn: s.dsn || '',
           host: s.host || '',
           port: s.port || '',
           uid: s.uid || '',
@@ -72,6 +74,7 @@ export default function Settings() {
   }, []);
 
   const cfgForTest = {
+    dsn: hfsql.dsn,
     host: hfsql.host,
     port: hfsql.port,
     uid: hfsql.uid,
@@ -104,6 +107,7 @@ export default function Settings() {
     setHfsqlMsg({ type: '', text: '' });
     try {
       const body = {
+        dsn: hfsql.dsn,
         host: hfsql.host,
         port: hfsql.port,
         uid: hfsql.uid,
@@ -215,6 +219,20 @@ export default function Settings() {
           )}
 
           <form className="space-y-3" onSubmit={handleSaveHfsql}>
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">Source de données (DSN, optionnel)</label>
+              <input
+                type="text"
+                value={hfsql.dsn}
+                onChange={e => setHfsql(f => ({ ...f, dsn: e.target.value }))}
+                placeholder="MaSourceODBC"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+              />
+              <p className="text-[11px] text-slate-400 mt-1">
+                Mode documenté par PCSoft sous Linux. Si renseigné, il est prioritaire sur les champs ci-dessous.
+                Le DSN doit être défini dans <code className="bg-slate-100 px-1 rounded">~/.odbc.ini</code> (ou l'outil iODBC).
+              </p>
+            </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">Serveur (hôte)</label>
@@ -281,7 +299,7 @@ export default function Settings() {
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
               />
               <p className="text-[11px] text-slate-400 mt-1">
-                Doit correspondre au nom du pilote installé (Windows : Administrateur ODBC → Pilotes. Linux : /etc/odbcinst.ini).
+                Doit correspondre au nom du pilote installé (Windows : Administrateur ODBC → Pilotes. Linux : /etc/odbcinst.ini) ou au chemin complet du pilote (ex : /opt/hfsql-odbc/WD310hfo64.so).
               </p>
             </div>
 

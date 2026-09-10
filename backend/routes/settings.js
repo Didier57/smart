@@ -11,6 +11,7 @@ router.use(requireAuth, requireAdmin);
 router.get('/hfsql', (req, res) => {
   const cfg = settings.getHfsqlConfig();
   res.json({
+    dsn: cfg.dsn,
     host: cfg.host,
     port: cfg.port,
     uid: cfg.uid,
@@ -23,9 +24,10 @@ router.get('/hfsql', (req, res) => {
 });
 
 router.post('/hfsql/test', async (req, res) => {
-  const { host, port, uid, pwd, database, driver } = req.body || {};
+  const { dsn, host, port, uid, pwd, database, driver } = req.body || {};
   const current = settings.getHfsqlConfig();
   const cfg = {
+    dsn: typeof dsn === 'string' ? dsn.trim() : current.dsn,
     host: typeof host === 'string' ? host.trim() : current.host,
     port: typeof port === 'string' ? port.trim() : current.port,
     uid: typeof uid === 'string' ? uid.trim() : current.uid,
@@ -35,18 +37,19 @@ router.post('/hfsql/test', async (req, res) => {
   };
   const connStr = settings.buildConnectionString(cfg);
   if (!connStr) {
-    return res.status(400).json({ ok: false, error: 'Veuillez renseigner au moins le nom du pilote et le serveur' });
+    return res.status(400).json({ ok: false, error: 'Veuillez renseigner soit un DSN, soit le pilote et le serveur' });
   }
   const result = await odbc.testConnectionString(connStr);
   res.json(result);
 });
 
 router.put('/hfsql', async (req, res) => {
-  const { host, port, uid, pwd, database, driver } = req.body || {};
+  const { dsn, host, port, uid, pwd, database, driver } = req.body || {};
   const current = settings.getHfsqlConfig();
   const newPwd = (typeof pwd === 'string' && pwd !== '') ? pwd : current.pwd;
 
   settings.saveHfsqlConfig({
+    dsn: (typeof dsn === 'string' && dsn.trim() !== '') ? dsn.trim() : '',
     host,
     port,
     uid,

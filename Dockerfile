@@ -10,10 +10,14 @@ RUN npm run build --prefix frontend
 FROM node:20-slim AS runtime
 WORKDIR /app
 
-# Dépendances système pour unixODBC (requis par node-odbc)
+# Dépendances système ODBC :
+# - unixODBC : requis au runtime par node-odbc (zure lié à libodbc)
+# - iODBC    : manager requis par le driver ODBC HFSQL (PCSoft) sous Linux
 RUN apt-get update && apt-get install -y --no-install-recommends \
     unixodbc \
     unixodbc-dev \
+    iodbc \
+    libiodbc2 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backend/package*.json ./backend/

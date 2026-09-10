@@ -15,6 +15,7 @@ const DEFAULT_DRIVER = 'PCSoft HFSQL Client Server';
 
 function getHfsqlConfig() {
   return {
+    dsn: get('hfsql.dsn', ''),
     host: get('hfsql.host', ''),
     port: get('hfsql.port', ''),
     uid: get('hfsql.uid', ''),
@@ -25,6 +26,7 @@ function getHfsqlConfig() {
 }
 
 function saveHfsqlConfig(cfg) {
+  set('hfsql.dsn', String(cfg.dsn || '').trim());
   set('hfsql.host', String(cfg.host || '').trim());
   set('hfsql.port', String(cfg.port || '').trim());
   set('hfsql.uid', String(cfg.uid || '').trim());
@@ -34,11 +36,18 @@ function saveHfsqlConfig(cfg) {
 }
 
 function hasHostConfigured() {
-  return Boolean(get('hfsql.host'));
+  return Boolean(get('hfsql.host') || get('hfsql.dsn'));
 }
 
 function buildConnectionString(cfg) {
   const parts = [];
+  const dsn = String(cfg.dsn || '').trim();
+  if (dsn) {
+    parts.push(`DSN=${dsn}`);
+    if (cfg.uid) parts.push(`UID=${cfg.uid}`);
+    if (cfg.pwd) parts.push(`PWD=${cfg.pwd}`);
+    return parts.join(';');
+  }
   const driver = String(cfg.driver || '').trim();
   if (driver) {
     parts.push(driver.startsWith('{') ? `Driver=${driver}` : `Driver={${driver}}`);
