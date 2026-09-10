@@ -4,7 +4,7 @@ const { JWT_SECRET, JWT_EXPIRES } = require('./config');
 
 function sign(user) {
   return jwt.sign(
-    { id: user.id, username: user.username, role: user.role },
+    { id: user.id, username: user.username, role: user.role, source: user.source || 'local', gestionClient: user.gestionClient || false },
     JWT_SECRET,
     { expiresIn: JWT_EXPIRES }
   );
@@ -18,6 +18,9 @@ function requireAuth(req, res, next) {
   const token = header.slice(7);
   try {
     req.user = jwt.verify(token, JWT_SECRET);
+    if (req.user.source === 'hfsql') {
+      return next();
+    }
     const u = dbLocal.prepare('SELECT active FROM users WHERE id = ?').get(req.user.id);
     if (!u || u.active !== 1) {
       return res.status(401).json({ error: 'Compte désactivé' });
