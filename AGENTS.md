@@ -25,7 +25,8 @@
 - La connexion HFSQL se configure dans **Paramètres** (admin) : serveur (hôte), port, identifiant, mot de passe, base, nom du pilote ODBC OU **DSN** + bouton "Tester la connexion". Le mot de passe est stocké localement (SQLite) et masqué dans l'UI. La config est prioritaire sur `ODBC_CONNECTION_STRING`. Un DSN renseigné est prioritaire sur les champs serveur/pilote.
 - Le pilote ODBC HFSQL (PCSoft) est **propriétaire** : son pack (`*.zip` Linux) ne doit **jamais** être committé dans le repo public (`.gitignore` : `hfsql-odbc/`). L'utilisateur le dépose dans `./hfsql-odbc/` ; `docker-entrypoint.sh` l'installe **automatiquement** au démarrage du conteneur (dézippage dans `/opt/hfsql-odbc/lib` + `./install.sh` qui enregistre le pilote **`HFSQL`** dans `/etc/odbcinst.ini`, partagé par iODBC et unixODBC) et positionne `LD_LIBRARY_PATH` (libs `wd290*.so` WinDev).
   - Windows : driver installé avec WinDev/WebDev, voir Administrateur ODBC → Pilotes (nom usuel `HFSQL ODBC Driver`).
-  - Linux : pilote par défaut dans l'app = `HFSQL`. L'image contient unixODBC (node-odbc), iODBC + iodbc-config (install.sh), unzip.
+  - Linux : pilote par défaut dans l'app = `HFSQL`. L'image contient unixODBC (+dev), iODBC (GTK, pour iodbctest), unzip — PAS libiodbc2-dev (conflit Debian avec unixodbc-dev) ; `iodbc-config` est fourni par un shim dans l'entrypoint (renvoie /etc/odbcinst.ini).
+  - Mots-clés de connexion imposés par le driver : `Server Name` / `Server Port` / `DATABASE` / `UID` / `PWD`. Des clés inconnues (`Host=`, `Port=`, `Server=`) **crash** le driver (core dump) — vérifié dans un chroot Debian bookworm via iodbctest.
   - Réf. PCSoft : https://doc.pcsoft.fr/fr-FR/?9000160
   - Node doit tourner dans la même architecture (32/64 bits) que le pilote.
 

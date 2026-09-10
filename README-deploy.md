@@ -49,6 +49,10 @@ Il suffit ensuite, dans l'application (Paramètres), de renseigner :
 **Nom du pilote** = `HFSQL`, **Serveur** (IP de la base HFSQL), **Port** (défaut 4900),
 **UID / mot de passe** et éventuellement **Base**, puis **Tester la connexion**.
 
+> Les mots-clés envoyés par l'application sont ceux attendus par le driver HFSQL
+> (`Server Name`, `Server Port`, `DATABASE`, `UID`, `PWD`) — d'autres clés comme
+> `Host=`/`Port=` provoquent un crash du driver.
+
 Vérification dans le conteneur :
 ```bash
 docker compose exec smart bash

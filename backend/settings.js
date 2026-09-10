@@ -52,8 +52,9 @@ function buildConnectionString(cfg) {
   if (driver) {
     parts.push(driver.startsWith('{') ? `Driver=${driver}` : `Driver={${driver}}`);
   }
-  if (cfg.host) parts.push(`Host=${cfg.host}`);
-  if (cfg.port) parts.push(`Port=${cfg.port}`);
+  // Mots-clés PCSoft imposés par le driver HFSQL (Host=/Port=/Server= → crash du driver)
+  if (cfg.host) parts.push(`Server Name=${cfg.host}`);
+  if (cfg.port) parts.push(`Server Port=${cfg.port}`);
   if (cfg.database) parts.push(`DATABASE=${cfg.database}`);
   if (cfg.uid) parts.push(`UID=${cfg.uid}`);
   if (cfg.pwd) parts.push(`PWD=${cfg.pwd}`);

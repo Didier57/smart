@@ -11,16 +11,16 @@ FROM node:20-slim AS runtime
 WORKDIR /app
 
 # Dépendances système ODBC :
-# - unixODBC : requis au runtime par node-odbc (lié à libodbc)
-# - iODBC    : manager requis par le driver ODBC HFSQL (PCSoft) sous Linux
-# - libiodbc2-dev : fournit `iodbc-config` (requis par install.sh du driver HFSQL)
+# - unixodbc / unixodbc-dev : requis par node-odbc (dev pour compiler le module au besoin)
+# - iodbc / libiodbc2      : manager requis par le driver ODBC HFSQL (PCSoft) sous Linux
+#   NB : PAS de libiodbc2-dev -> il est en CONFLIT avec unixodbc-dev en Debian
+#       (mêmes en-têtes ODBC). iodbc-config est fourni par l'entrypoint (shim).
 # - unzip    : extraction du pack du driver au démarrage (entrypoint)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     unixodbc \
     unixodbc-dev \
     iodbc \
     libiodbc2 \
-    libiodbc2-dev \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 

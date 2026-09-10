@@ -3,9 +3,23 @@ set -eu
 
 PACK_DIR="/opt/hfsql-odbc"
 DRIVER_DIR="${PACK_DIR}/lib"
-ODBCINST_INI=$(iodbc-config --odbcinstini 2>/dev/null || echo "/etc/odbcinst.ini")
+ODBCINST_INI="/etc/odbcinst.ini"
 
 echo "[entrypoint] Démarrage de Smart..."
+
+# 0) iODBC fournit `iodbc-config` dans libiodbc2-dev, en conflit avec unixodbc-dev
+#    (mêmes en-têtes ODBC). install.sh n'en utilise que `--odbcinstini` -> shim.
+if ! command -v iodbc-config >/dev/null 2>&1; then
+  cat > /usr/local/bin/iodbc-config <<'SHIM'
+#!/bin/sh
+case "$1" in
+  --odbcinstini) echo "/etc/odbcinst.ini" ;;
+esac
+exit 0
+SHIM
+  chmod +x /usr/local/bin/iodbc-config
+  echo "[entrypoint] shim iodbc-config installé (renvoie $ODBCINST_INI)."
+fi
 
 # 1) Driver ODBC HFSQL : installé une seule fois s'il n'est pas déjà enregistré.
 if grep -q "^\[HFSQL\]" "$ODBCINST_INI" 2>/dev/null; then
