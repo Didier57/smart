@@ -97,16 +97,6 @@ static void emit_str_or_null(SQLHSTMT st, SQLSMALLINT col)
         fputs("null", stdout);
 }
 
-static void emit_long_or_null(SQLHSTMT st, SQLSMALLINT col)
-{
-    long v = 0;
-    fetch_rc rc = fetch_long(st, col, &v);
-    if (rc == FSTR_VALUE)
-        printf("%ld", v);
-    else
-        fputs("null", stdout);
-}
-
 static void fail_msg(const char *state, const char *msg)
 {
     fputs("{\"ok\":false,\"message\":", stdout);
@@ -248,11 +238,44 @@ static void op_tables(const char *connstr)
 
 static void op_columns(const char *connstr, const char *table)
 {
+    enum { MAXCOLS = 512 };
+    struct colmeta {
+        long dt;
+        long size;
+        long nullable;
+        long ordinal;
+        unsigned char type[64];
+        unsigned char remarks[4096];
+    };
+    static struct colmeta meta[MAXCOLS];
+    static unsigned char dname[MAXCOLS][512];
+    int nmeta = 0;
+    SQLSMALLINT ncol = 0;
     SQLHENV env = SQL_NULL_HENV;
     SQLHDBC dbc;
     SQLHSTMT stmt = SQL_NULL_HSTMT;
     SQLRETURN r;
-    int first = 1;
+    size_t i;
+
+    /* Le driver HFSQL sous iODBC renvoie COLUMN_NAME vide dans SQLColumns.
+     * On récupère les vrais noms via les métadonnées de "SELECT * WHERE 1=0"
+     * (SQLDescribeCol) puis on les fusionne avec les autres métadonnées. */
+    size_t tl = strlen(table);
+    char *sql = malloc(tl * 2 + 40);
+    if (!sql) {
+        fputs("{\"ok\":false,\"message\":\"hfcli: echec allocation SQL\"}\n", stdout);
+        exit(2);
+    }
+    {
+        char *p = sql;
+        p += sprintf(p, "SELECT * FROM \"");
+        for (i = 0; i < tl; i++) {
+            if (table[i] == '"')
+                *p++ = '"';
+            *p++ = table[i];
+        }
+        strcpy(p, "\" WHERE 1=0");
+    }
 
     dbc = do_connect(connstr, &env);
     r = SQLAllocHandle(SQL_HANDLE_STMT, dbc, &stmt);
@@ -263,31 +286,78 @@ static void op_columns(const char *connstr, const char *table)
     if (!SQL_SUCCEEDED(r))
         fail("hfcli: SQLColumns", env, dbc, stmt);
 
-    fputs("{\"ok\":true,\"rows\":[", stdout);
     for (;;) {
+        if (nmeta >= MAXCOLS)
+            break;
         r = SQLFetch(stmt);
         if (r == SQL_NO_DATA)
             break;
-        if (!first)
-            fputc(',', stdout);
-        first = 0;
-        fputs("{\"COLUMN_NAME\":", stdout);
-        emit_str_or_null(stmt, 1);
-        fputs(",\"DATA_TYPE\":", stdout);
-        emit_long_or_null(stmt, 5);
-        fputs(",\"TYPE_NAME\":", stdout);
-        emit_str_or_null(stmt, 6);
-        fputs(",\"COLUMN_SIZE\":", stdout);
-        emit_long_or_null(stmt, 7);
-        fputs(",\"NULLABLE\":", stdout);
-        emit_long_or_null(stmt, 11);
-        fputs(",\"REMARKS\":", stdout);
-        emit_str_or_null(stmt, 12);
-        fputs(",\"ORDINAL_POSITION\":", stdout);
-        emit_long_or_null(stmt, 17);
-        fputc('}', stdout);
+        meta[nmeta].dt = 0;
+        meta[nmeta].size = 0;
+        meta[nmeta].nullable = 0;
+        meta[nmeta].ordinal = 0;
+        meta[nmeta].type[0] = 0;
+        meta[nmeta].remarks[0] = 0;
+        (void)fetch_long(stmt, 5, &meta[nmeta].dt);
+        (void)fetch_str(stmt, 6, meta[nmeta].type, sizeof meta[nmeta].type);
+        (void)fetch_long(stmt, 7, &meta[nmeta].size);
+        (void)fetch_long(stmt, 11, &meta[nmeta].nullable);
+        (void)fetch_str(stmt, 12, meta[nmeta].remarks, sizeof meta[nmeta].remarks);
+        (void)fetch_long(stmt, 17, &meta[nmeta].ordinal);
+        nmeta++;
+    }
+
+    SQLFreeStmt(stmt, SQL_CLOSE);
+    r = SQLPrepare(stmt, (SQLCHAR *)sql, SQL_NTS);
+    if (!SQL_SUCCEEDED(r))
+        fail("hfcli: SQLPrepare nom colonnes", env, dbc, stmt);
+    r = SQLExecute(stmt);
+    if (!SQL_SUCCEEDED(r))
+        fail("hfcli: SQLExecute nom colonnes", env, dbc, stmt);
+
+    (void)SQLNumResultCols(stmt, &ncol);
+    if (ncol > MAXCOLS)
+        ncol = MAXCOLS;
+    for (i = 0; i < (size_t)ncol; i++) {
+        SQLSMALLINT clen = 0, sqltype = 0, digits = 0, nullable = 0;
+        SQLULEN csize = 0;
+        memset(dname[i], 0, sizeof dname[i]);
+        r = SQLDescribeCol(stmt, (SQLSMALLINT)(i + 1), dname[i], 511, &clen,
+                           &sqltype, &csize, &digits, &nullable);
+        (void)r;
+    }
+
+    fputs("{\"ok\":true,\"rows\":[", stdout);
+    {
+        int first = 1;
+        for (i = 0; i < (size_t)nmeta; i++) {
+            int idx = (int)meta[i].ordinal - 1;
+            const unsigned char *nm =
+                (ncol > 0 && idx >= 0 && idx < ncol && dname[idx][0])
+                    ? dname[idx]
+                    : (const unsigned char *)"";
+            if (!first)
+                fputc(',', stdout);
+            first = 0;
+            fputs("{\"COLUMN_NAME\":", stdout);
+            emit_string(nm, strnlen((const char *)nm, sizeof(dname[idx])));
+            fputs(",\"DATA_TYPE\":", stdout);
+            printf("%ld", meta[i].dt);
+            fputs(",\"TYPE_NAME\":", stdout);
+            emit_string(meta[i].type, strnlen((const char *)meta[i].type, sizeof meta[i].type));
+            fputs(",\"COLUMN_SIZE\":", stdout);
+            printf("%ld", meta[i].size);
+            fputs(",\"NULLABLE\":", stdout);
+            printf("%ld", meta[i].nullable);
+            fputs(",\"REMARKS\":", stdout);
+            emit_string(meta[i].remarks, strnlen((const char *)meta[i].remarks, sizeof meta[i].remarks));
+            fputs(",\"ORDINAL_POSITION\":", stdout);
+            printf("%ld", meta[i].ordinal);
+            fputc('}', stdout);
+        }
     }
     fputs("]}\n", stdout);
+    free(sql);
     release(env, dbc, stmt);
     exit(0);
 }
@@ -375,12 +445,13 @@ static void op_query(const char *connstr, const char *sql, int nparams, char **p
             exit(2);
         }
         for (i = 0; i < (size_t)ncol; i++) {
-            SQLSMALLINT clen = 0;
+            SQLSMALLINT clen = 0, sqltype = 0, digits = 0, nullable = 0;
+            SQLULEN csize = 0;
             cnames[i] = (SQLCHAR *)calloc(1, 512);
             if (!cnames[i])
                 continue;
-            r = SQLColAttribute(stmt, (SQLSMALLINT)(i + 1), SQL_DESC_NAME,
-                                cnames[i], 511, &clen, NULL);
+            r = SQLDescribeCol(stmt, (SQLSMALLINT)(i + 1), cnames[i], 511,
+                               &clen, &sqltype, &csize, &digits, &nullable);
             (void)r;
         }
     }
