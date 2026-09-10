@@ -48,7 +48,7 @@ APP_PORT=3001
 JWT_SECRET=votre-secret
 
 # Chaîne de connexion ODBC (alternative à la configuration UI)
-ODBC_CONNECTION_STRING=Driver={PCSoft HFSQL Client Server};Host=192.168.1.100;UID=admin;PWD=password;DATABASE=MaBase
+ODBC_CONNECTION_STRING=Driver={HFSQL};Host=192.168.1.100;UID=admin;PWD=password;DATABASE=MaBase
 
 # Admin par défaut
 DEFAULT_ADMIN_USER=admin
@@ -57,13 +57,13 @@ DEFAULT_ADMIN_PASS=admin123
 
 ### À propos du pilote ODBC HFSQL
 
-Le pilote HFSQL est un composant **propriétaire PCSoft** et son installation est **manuelle** :
-- Il n'est **pas** inclus dans l'image Docker (seuls les managers ODBC le sont : unixODBC pour node-odbc, iODBC requis par le driver Linux).
-- **Windows** : installé avec WinDev/WebDev, visible dans l'Administrateur ODBC → Pilotes.
-- **Linux** : archive `wxpackodbclinux64.zip` (répertoire `INSTALL\ODBC` de l'installation WinDev/WebDev), à dézipper puis installer via `./install.sh` (enregistrement auprès d'iODBC), source à configurer dans `~/.odbc.ini`.
+Le pilote HFSQL est un composant **propriétaire PCSoft** (nom du pilote Linux : **`HFSQL`**) :
+- Il n'est **jamais** committé dans le dépôt (repo public) — son pack est à déposer dans `./hfsql-odbc/` sur le serveur.
+- **Windows** : installé avec WinDev/WebDev, visible dans l'Administrateur ODBC → Pilotes (nom usuel `HFSQL ODBC Driver`).
+- **Linux/Docker** : `docker-entrypoint.sh` installe le driver **automatiquement** au démarrage à partir du pack `*.zip` monté dans `/opt/hfsql-odbc` (extraction + `install.sh` → enregistrement `[HFSQL]` dans `/etc/odbcinst.ini`).
 - L'application Node doit tourner dans la même architecture (32/64 bits) que le pilote installé.
 
-Consultez **`README-deploy.md`** pour les étapes détaillées d'installation du driver (Windows et Linux/Docker).
+Consultez **`README-deploy.md`** pour les étapes complètes d'installation du driver (Windows et Linux/Docker).
 
 ### Développement local
 

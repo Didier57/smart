@@ -11,7 +11,7 @@ function set(key, value) {
   ).run(key, value);
 }
 
-const DEFAULT_DRIVER = 'PCSoft HFSQL Client Server';
+const DEFAULT_DRIVER = 'HFSQL';
 
 function getHfsqlConfig() {
   return {

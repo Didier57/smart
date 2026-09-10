@@ -16,5 +16,6 @@ services:
       - TZ=Europe/Paris
     volumes:
       - ${DATA_DIR:-./data}:/app/backend/data
-      # Pilote ODBC HFSQL (installation MANUELLE requise, voir README-deploy.md)
+      # Pilote ODBC HFSQL : déposer un pack *.zip ici -> installé automatiquement
+      # au démarrage par docker-entrypoint.sh (voir README-deploy.md)
       - ${HFSQL_ODBC_DIR:-./hfsql-odbc}:/opt/hfsql-odbc

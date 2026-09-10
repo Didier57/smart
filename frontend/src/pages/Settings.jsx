@@ -24,7 +24,7 @@ export default function Settings() {
     uid: '',
     pwd: '',
     database: '',
-    driver: 'PCSoft HFSQL Client Server',
+    driver: 'HFSQL',
     passwordSet: false,
     source: null,
     envFallback: false
@@ -58,7 +58,7 @@ export default function Settings() {
           uid: s.uid || '',
           pwd: '',
           database: s.database || '',
-          driver: s.driver || 'PCSoft HFSQL Client Server',
+          driver: s.driver || 'HFSQL',
           passwordSet: !!s.passwordSet,
           source: s.source || null,
           envFallback: !!s.envFallback
@@ -299,7 +299,8 @@ export default function Settings() {
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-blue-500"
               />
               <p className="text-[11px] text-slate-400 mt-1">
-                Doit correspondre au nom du pilote installé (Windows : Administrateur ODBC → Pilotes. Linux : /etc/odbcinst.ini) ou au chemin complet du pilote (ex : /opt/hfsql-odbc/WD310hfo64.so).
+                Doit correspondre au nom du pilote installé. Linux (pack PCSoft) : <code className="bg-slate-100 px-1 rounded">HFSQL</code> ou chemin du <code className="bg-slate-100 px-1 rounded">.so</code> (ex : /opt/hfsql-odbc/lib/wd290hfo64.so).
+                Windows : Administrateur ODBC → Pilotes (ex : <code className="bg-slate-100 px-1 rounded">HFSQL ODBC Driver</code>).
               </p>
             </div>
 

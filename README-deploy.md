@@ -3,18 +3,18 @@
 Documentation PCSoft de référence : https://doc.pcsoft.fr/fr-FR/?9000160
 
 > **Point important** : le driver ODBC HFSQL de PCSoft est un composant **propriétaire**.
-> Il n'est **pas** inclus dans l'image Docker et son installation ne peut pas être automatisée.
-> Seuls les managers ODBC (unixODBC pour node-odbc, iODBC requis par le driver Linux) sont inclus.
+> Le pack n'est **pas** committé dans le dépôt public ni inclus dans l'image GitHub Actions.
+> Il est à déposer sur le serveur ; son installation dans le conteneur est **automatique**.
 
 ---
 
 ## 1. Cas Windows (développement local)
 
-Sous Windows, le driver ODBC HFSQL est installé **avec WinDev / WebDev / WINDEV Mobile** (ou son installeur).
+Sous Windows, le driver ODBC HFSQL est installé **avec WinDev / WebDev / WINDEV Mobile**.
 
 1. Installez WinDev/WebDev (le driver ODBC est installé avec le produit).
 2. Vérifiez sa présence : `Outil système` → `Administrateur ODBC` → onglet **Pilotes**.
-   - Le nom exact du pilote s'affiche dans la liste (ex : `PCSoft HFSQL Client Server`).
+   Le nom le plus courant est **`HFSQL ODBC Driver`**.
 3. Dans l'application Smart (Paramètres), renseignez ce **nom de pilote** + Serveur, Port, UID, PWD, Base, puis **Tester la connexion**.
 
 > Vérifiez que Node.js tourne dans la même architecture (32/64 bits) que le driver installé.
@@ -23,32 +23,40 @@ Sous Windows, le driver ODBC HFSQL est installé **avec WinDev / WebDev / WINDEV
 
 ## 2. Cas Linux / Docker (NAS Synology, etc.)
 
-Le driver Linux est distribué uniquement avec WinDev/WebDev/WINDEV Mobile, dans
-le répertoire `INSTALL\ODBC` sous forme d'archive `wxpackodbclinux64.zip`.
+### 2a. Récupérer le pack du driver
 
-### 2a. Récupérer le driver
+Le driver Linux est distribué uniquement avec WinDev/WebDev/WINDEV Mobile, dans le
+répertoire `INSTALL\ODBC` (par ex. `wxpackodbclinux64.zip` ou `ODBC2024LINUX64PACK...zip`).
 
-Sur le poste où WinDev (ou WebDev/WinDev Mobile) est installé, copiez
-`wxpackodbclinux64.zip` depuis le sous-répertoire `INSTALL\ODBC`.
+Copiez l'archive sur le serveur, dans le dossier `./hfsql-odbc/` à côté du `docker-compose.yml` :
 
-### 2b. Installation manuelle dans le conteneur
+```bash
+mkdir -p hfsql-odbc
+cp ODBC2024LINUX64PACK....zip hfsql-odbc/
+```
 
-1. Montez l'archive dans le conteneur (volume `./hfsql-odbc:/opt/hfsql-odbc`).
-   Placez `wxpackodbclinux64.zip` dans le dossier hôte `./hfsql-odbc/`.
-2. Connectez-vous dans le conteneur :
-   ```bash
-   docker compose exec smart bash
-   ```
-3. Dézippez et lancez le script d'installation (enregistre le driver auprès d'iODBC) :
-   ```bash
-   cd /opt/hfsql-odbc
-   unzip wxpackodbclinux64.zip -d hfo
-   cd hfo
-   ./install.sh          # ou : sudo ./install.sh   (./install.sh -help pour plus d'options)
-   ```
-   L'iODBC manager est déjà installé dans l'image (`iodbc`, `libiodbc2`).
+### 2b. Installation automatique au démarrage
 
-### 2c. Configurer la source de données (DSN)
+Le conteneur (`entrypoint`) installe le driver **tout seul** au premier démarrage :
+
+1. Détecte une archive `*.zip` dans `/opt/hfsql-odbc` (le volume `./hfsql-odbc`);
+2. L'extrait dans `/opt/hfsql-odbc/lib`;
+3. Lance `./install.sh` qui enregistre le pilote **`HFSQL`** dans `/etc/odbcinst.ini`
+   (lisible à la fois par iODBC et unixODBC);
+4. Expose `/opt/hfsql-odbc/lib` via `LD_LIBRARY_PATH` (les `wd290*.so` WinDev).
+
+Il suffit ensuite, dans l'application (Paramètres), de renseigner :
+**Nom du pilote** = `HFSQL`, **Serveur** (IP de la base HFSQL), **Port** (défaut 4900),
+**UID / mot de passe** et éventuellement **Base**, puis **Tester la connexion**.
+
+Vérification dans le conteneur :
+```bash
+docker compose exec smart bash
+cat /etc/odbcinst.ini        # doit contenir la section [HFSQL]
+ls /opt/hfsql-odbc/lib       # contient wd290hfo64.so + les bibliothèques WinDev
+```
+
+### 2c. Alternative : DSN dans ~/.odbc.ini
 
 Créer/modifier `~/.odbc.ini` dans le conteneur (racine : `/root/.odbc.ini`) :
 
@@ -64,37 +72,32 @@ UID = utilisateur
 PWD = motdepasse
 ```
 
-Ou via l'outil graphique iODBC (`iodbcadm-gtk`).
-
 Test en ligne de commande :
 ```bash
 iodbctest "DSN=MaSourceODBC"
 ```
 
-### 2d. Brancher l'application
+Puis renseignez dans Smart (Paramètres) le champ **Source de données (DSN)** avec
+`MaSourceODBC` et cliquez **Tester la connexion**.
 
-Dans Smart (Paramètres), renseignez le champ **Source de données (DSN)** avec
-`MaSourceODBC`, puis cliquez **Tester la connexion**.
-
-> **Note sur les managers ODBC** : node-odbc (le package `odbc`) est lié à **unixODBC**,
-> tandis que le driver HFSQL Linux de PCSoft s'enregistre avec **iODBC**. Les deux managers
-> lisent le fichier DSN `~/.odbc.ini` (spécification ODBC). Si la connexion échoue avec un
-> DSN, essayez de pointer le champ **Nom du pilote** directement sur le fichier `.so`
-> (ex : `/opt/hfsql-odbc/hfo/WD310hfo64.so`) avec les champs Serveur/Port/UID/PWD.
+> **Note ODBC** : node-odbc (package `odbc`) est lié à unixODBC, le driver Linux PCSoft
+> s'enregistre auprès d'iODBC, mais les deux managers partagent `/etc/odbcinst.ini`.
+> En cas d'échec, pointez le **Nom du pilote** directement sur le fichier `.so`
+> (ex : `/opt/hfsql-odbc/lib/wd290hfo64.so`) avec les champs Serveur/Port/UID/PWD.
 
 ---
 
 ## 3. Déploiement Docker (NAS)
 
 ```bash
-# Préparer le dossier du driver
-mkdir -p hfsql-odbc
-cp wxpackodbclinux64.zip hfsql-odbc/
+# 1. Préparer le pack du driver (voir 2a)
+mkdir -p hfsql-odbc data
+cp <pack-hfsql>.zip hfsql-odbc/
 
-# Variable d'environnement (fichier .env à côté du docker-compose.yml)
-JWT_SECRET=une-longue-cle-secrete
+# 2. Fichier .env à côté du docker-compose.yml
+#    JWT_SECRET=une-longue-cle-secrete
 
-# Démarrer
+# 3. Démarrer
 docker compose up -d
 docker compose pull && docker compose up -d --force-recreate
 ```

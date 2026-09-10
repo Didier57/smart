@@ -23,9 +23,9 @@
 - Compte admin par défaut: `admin / admin123`
 - L'explorateur découvre automatiquement les tables/colonnes via `odbc.tables()` et `odbc.columns()`
 - La connexion HFSQL se configure dans **Paramètres** (admin) : serveur (hôte), port, identifiant, mot de passe, base, nom du pilote ODBC OU **DSN** + bouton "Tester la connexion". Le mot de passe est stocké localement (SQLite) et masqué dans l'UI. La config est prioritaire sur `ODBC_CONNECTION_STRING`. Un DSN renseigné est prioritaire sur les champs serveur/pilote.
-- Le pilote ODBC HFSQL (PCSoft) est **propriétaire** : il n'est PAS inclus dans l'image Docker (seuls unixODBC — pour node-odbc — et iODBC — manager requis par le driver Linux — l'y sont). L'installation est **manuelle**, voir `README-deploy.md` :
-  - Windows : installé avec WinDev/WebDev, voir Administrateur ODBC → Pilotes.
-  - Linux : archive `wxpackodbclinux64.zip` (répertoire `INSTALL\ODBC` de WinDev) + `./install.sh` (enregistre auprès d'iODBC) + DSN dans `~/.odbc.ini`.
+- Le pilote ODBC HFSQL (PCSoft) est **propriétaire** : son pack (`*.zip` Linux) ne doit **jamais** être committé dans le repo public (`.gitignore` : `hfsql-odbc/`). L'utilisateur le dépose dans `./hfsql-odbc/` ; `docker-entrypoint.sh` l'installe **automatiquement** au démarrage du conteneur (dézippage dans `/opt/hfsql-odbc/lib` + `./install.sh` qui enregistre le pilote **`HFSQL`** dans `/etc/odbcinst.ini`, partagé par iODBC et unixODBC) et positionne `LD_LIBRARY_PATH` (libs `wd290*.so` WinDev).
+  - Windows : driver installé avec WinDev/WebDev, voir Administrateur ODBC → Pilotes (nom usuel `HFSQL ODBC Driver`).
+  - Linux : pilote par défaut dans l'app = `HFSQL`. L'image contient unixODBC (node-odbc), iODBC + iodbc-config (install.sh), unzip.
   - Réf. PCSoft : https://doc.pcsoft.fr/fr-FR/?9000160
   - Node doit tourner dans la même architecture (32/64 bits) que le pilote.
 
@@ -39,7 +39,8 @@
 - `backend/routes/auth.js` — Login JWT + profil
 - `frontend/src/pages/Explorer.jsx` — Explorateur interactif de tables
 - `frontend/src/pages/Settings.jsx` — Connexion HFSQL (admin, mode DSN ou champs) + profil
-- `README-deploy.md` — installation MANUELLE du driver ODBC HFSQL (iODBC + wxpackodbclinux64.zip)
+- `README-deploy.md` — déploiement et installation du driver ODBC HFSQL (automatique via `docker-entrypoint.sh` depuis `./hfsql-odbc/*.zip`)
+- `docker-entrypoint.sh` — installe le driver HFSQL au démarrage si absent, expose `LD_LIBRARY_PATH`
 
 ## Déploiement
 - Après les tests locaux: `git add -A && git commit -m "..." && git push` sur `main`.

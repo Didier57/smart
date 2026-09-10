@@ -11,13 +11,17 @@ FROM node:20-slim AS runtime
 WORKDIR /app
 
 # Dépendances système ODBC :
-# - unixODBC : requis au runtime par node-odbc (zure lié à libodbc)
+# - unixODBC : requis au runtime par node-odbc (lié à libodbc)
 # - iODBC    : manager requis par le driver ODBC HFSQL (PCSoft) sous Linux
+# - libiodbc2-dev : fournit `iodbc-config` (requis par install.sh du driver HFSQL)
+# - unzip    : extraction du pack du driver au démarrage (entrypoint)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     unixodbc \
     unixodbc-dev \
     iodbc \
     libiodbc2 \
+    libiodbc2-dev \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backend/package*.json ./backend/
@@ -25,9 +29,16 @@ RUN npm ci --prefix backend
 COPY backend ./backend
 COPY --from=frontend /app/frontend/dist ./frontend/dist
 
+# Entrypoint : installe le driver ODBC HFSQL (pack *.zip monté dans /opt/hfsql-odbc)
+# puis prépare LD_LIBRARY_PATH pour les bibliothèques WinDev (wd290*.so).
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+
 ENV NODE_ENV=production
 ENV PORT=3001
 ENV TZ=Europe/Paris
+ENV LD_LIBRARY_PATH=/opt/hfsql-odbc/lib
 EXPOSE 3001
 
 WORKDIR /app/backend
