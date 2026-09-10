@@ -86,9 +86,13 @@ function driverDetail(connStr) {
       try {
         const text = `${stdout || ''}\n${stderr || ''}`;
         const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
-        const pick = lines.find(l =>
-          /(already defined|déjà décrit|deja decrit|SQLSTATE=|file not found|can't open)/i.test(l)
-        );
+        const pick =
+          lines.find(l => /SQLDriverConnect|SQLConnect/.test(l)) ||
+          lines.find(l => /Module=<|Version=</.test(l)) ||
+          lines.find(l => /already defined|déjà décrit|deja decrit/i.test(l)) ||
+          lines.find(l => /file not found|can['’]t open/i.test(l)) ||
+          [...lines].reverse().find(l => /SQLSTATE=/i.test(l)) ||
+          '';
         resolve(pick ? scrubPwd(pick) : '');
       } catch {
         resolve('');
