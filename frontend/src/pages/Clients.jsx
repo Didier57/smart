@@ -26,7 +26,8 @@ const EDIT_FIELDS = [
   { key: 'ClientEmail', label: 'Email' },
   { key: 'ClientContrat', label: 'Contrat' },
   { key: 'ClientContratType', label: 'Type Contrat' },
-  { key: 'ClientDeleted', label: 'Deleted (0/1)', type: 'number' },
+  { key: 'IDContract', label: 'ID Contrat (lien)', type: 'number' },
+  { key: 'ClientDeleted', label: 'Supprimé', type: 'checkbox' },
 ];
 
 function makeDefaultFilters() {
@@ -57,7 +58,14 @@ function persistWidths(widths) {
 function ClientEditModal({ row, onClose, onSaved }) {
   const [form, setForm] = useState(() => {
     const f = {};
-    EDIT_FIELDS.forEach(field => { f[field.key] = row[field.key] != null ? String(row[field.key]) : ''; });
+    EDIT_FIELDS.forEach(field => {
+      const val = row[field.key];
+      if (field.type === 'checkbox') {
+        f[field.key] = val === 1 || val === '1' || val === true;
+      } else {
+        f[field.key] = val != null ? String(val) : '';
+      }
+    });
     return f;
   });
   const [saving, setSaving] = useState(false);
@@ -71,7 +79,13 @@ function ClientEditModal({ row, onClose, onSaved }) {
     try {
       const body = {};
       EDIT_FIELDS.forEach(f => {
-        body[f.key] = f.type === 'number' ? (form[f.key] === '' ? null : Number(form[f.key])) : form[f.key];
+        if (f.type === 'checkbox') {
+          body[f.key] = form[f.key] ? 1 : 0;
+        } else if (f.type === 'number') {
+          body[f.key] = form[f.key] === '' ? null : Number(form[f.key]);
+        } else {
+          body[f.key] = form[f.key];
+        }
       });
       await api.put(`/clients/${row.IDClient}`, body);
       onSaved();
@@ -90,13 +104,27 @@ function ClientEditModal({ row, onClose, onSaved }) {
           <div className="space-y-3">
             {EDIT_FIELDS.map(f => (
               <div key={f.key}>
-                <label className="block text-xs font-medium text-slate-500 mb-1">{f.label}</label>
-                <input
-                  type="text"
-                  value={form[f.key]}
-                  onChange={e => handleChange(f.key, e.target.value)}
-                  className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
-                />
+                {f.type === 'checkbox' ? (
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={!!form[f.key]}
+                      onChange={e => handleChange(f.key, e.target.checked)}
+                      className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-xs font-medium text-slate-500">{f.label}</span>
+                  </label>
+                ) : (
+                  <>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">{f.label}</label>
+                    <input
+                      type="text"
+                      value={form[f.key]}
+                      onChange={e => handleChange(f.key, e.target.value)}
+                      className="w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:border-blue-500"
+                    />
+                  </>
+                )}
               </div>
             ))}
           </div>
