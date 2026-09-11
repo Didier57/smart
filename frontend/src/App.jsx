@@ -3,6 +3,7 @@ import { Navigate, Routes, Route } from 'react-router-dom';
 import { getStoredUser, clearSession } from './api.js';
 import Login from './pages/Login.jsx';
 import Clients from './pages/Clients.jsx';
+import Contracts from './pages/Contracts.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Explorer from './pages/Explorer.jsx';
 import Settings from './pages/Settings.jsx';
@@ -51,6 +52,7 @@ export default function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<Clients />} />
+          <Route path="/contracts" element={<Contracts />} />
           <Route path="/dashboard" element={<RequireAdmin><Dashboard /></RequireAdmin>} />
           <Route path="/explorer" element={<RequireAdmin><Explorer /></RequireAdmin>} />
           <Route path="/explorer/:tableName" element={<RequireAdmin><Explorer /></RequireAdmin>} />

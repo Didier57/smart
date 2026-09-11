@@ -1,5 +1,5 @@
 const express = require('express');
-const { requireAuth, requireAdmin } = require('../auth');
+const { requireAuth } = require('../auth');
 const odbc = require('../db');
 
 const router = express.Router();
@@ -14,6 +14,52 @@ const SELECT_KEYS = [
   'Product_Group', 'F5', 'AM_Signature', 'Contract_Stop', 'phone_include',
   'COntract_stop_date', 'Customer_name_sap', 'IDClient', 'Remote'
 ];
+
+const FIELD_TYPES = {
+  IDContract: 'num',
+  SAP_EWP: 'text',
+  SAP_EUPAC: 'text',
+  WBS: 'text',
+  SoldtoParty: 'text',
+  Customer_name: 'text',
+  Main_contractual_subject: 'text',
+  Acc_Manager: 'text',
+  Amount: 'num',
+  Contract_type: 'num',
+  Service_Type: 'text',
+  SC: 'bool',
+  Contract_included: 'bool',
+  RTP1: 'num',
+  RTP2: 'num',
+  RTP3: 'num',
+  Intervention_time: 'num',
+  Repair_time: 'num',
+  Service_window: 'text',
+  Preventive_maintenance: 'bool',
+  Backups: 'bool',
+  Remote_Service: 'bool',
+  SW_Upgrades: 'bool',
+  Created_date: 'date',
+  CSO: 'text',
+  Contract_start: 'date',
+  Duration_month: 'num',
+  Contract_end: 'date',
+  Renew_month: 'num',
+  Billing: 'num',
+  Garantie: 'bool',
+  Remarks_BAC: 'text',
+  GA: 'bool',
+  Customer_Group: 'text',
+  Product_Group: 'text',
+  F5: 'bool',
+  AM_Signature: 'bool',
+  Contract_Stop: 'bool',
+  phone_include: 'bool',
+  COntract_stop_date: 'date',
+  Customer_name_sap: 'text',
+  IDClient: 'num',
+  Remote: 'bool'
+};
 
 function sanitize(row) {
   if (!row) return row;
@@ -80,29 +126,24 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
+router.put('/:id', requireAuth, async (req, res) => {
+  const { user } = req;
+  if (user.role !== 'admin' && !user.gestionClient) {
+    return res.status(403).json({ error: 'Accès refusé' });
+  }
   try {
     const id = String(req.params.id).replace(/'/g, "''");
     const b = req.body || {};
     const esc = v => v == null ? 'NULL' : `'${String(v).replace(/'/g, "''")}'`;
     const num = v => v == null || v === '' ? 'NULL' : Number(v);
-    const fields = [
-      'Customer_name', 'Main_contractual_subject', 'SAP_EUPAC', 'WBS', 'SoldtoParty',
-      'Acc_Manager', 'Service_Type', 'Service_window', 'Contract_start', 'Contract_end',
-      'Remarks_BAC', 'F5', 'AM_Signature', 'Customer_Group', 'Product_Group',
-      'Preventive_maintenance', 'Backups', 'Remote_Service', 'SW_Upgrades', 'CSO'
-    ];
-    const numFields = [
-      'Amount', 'Contract_type', 'SC', 'Contract_included', 'RTP1', 'RTP2', 'RTP3',
-      'Intervention_time', 'Repair_time', 'Duration_month', 'Renew_month', 'Billing',
-      'Garantie', 'GA', 'Contract_Stop', 'phone_include', 'Remote'
-    ];
     const parts = [];
-    for (const f of fields) {
-      if (b[f] !== undefined) parts.push(`"${f}" = ${esc(b[f])}`);
-    }
-    for (const f of numFields) {
-      if (b[f] !== undefined) parts.push(`"${f}" = ${num(b[f])}`);
+    for (const [f, type] of Object.entries(FIELD_TYPES)) {
+      if (f === 'IDContract' || b[f] === undefined) continue;
+      let val;
+      if (type === 'bool') val = b[f] ? 1 : 0;
+      else if (type === 'num') val = num(b[f]);
+      else val = esc(b[f]);
+      parts.push(`"${f}" = ${val}`);
     }
     if (parts.length === 0) return res.status(400).json({ error: 'Aucun champ à modifier' });
     await odbc.query(`UPDATE "Contract" SET ${parts.join(', ')} WHERE IDContract = ${id}`);

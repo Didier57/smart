@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { LayoutDashboard, Database, Settings, LogOut, UserCircle, Menu, X, Users } from 'lucide-react';
+import { LayoutDashboard, Database, Settings, LogOut, UserCircle, Menu, X, Users, FileText } from 'lucide-react';
 import { useAuth } from '../App.jsx';
 
 export default function Layout() {
@@ -22,6 +22,9 @@ export default function Layout() {
         <nav className={`${mobileOpen ? 'flex' : 'hidden'} md:flex flex-col md:flex-row absolute md:static top-13 left-0 right-0 bg-slate-900 md:bg-transparent z-30 p-3 md:p-0 gap-1`}>
           <NavLink to="/" end className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition ${isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-white/10 hover:text-white'}`} onClick={() => setMobileOpen(false)}>
             <Users size={16} /> Clients
+          </NavLink>
+          <NavLink to="/contracts" className={({ isActive }) => `flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition ${isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-white/10 hover:text-white'}`} onClick={() => setMobileOpen(false)}>
+            <FileText size={16} /> Contrat
           </NavLink>
           {isAdmin && (
             <>
