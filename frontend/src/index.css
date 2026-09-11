@@ -87,8 +87,19 @@ table.table th .th-sort {
 .col-resize-handle:hover { background: rgba(14, 108, 255, 0.35); }
 
 /* ==== Table scrollable avec en-têtes figés ==== */
+.smart-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 90px);
+  overflow: hidden;
+}
+.smart-page .page-header {
+  flex-shrink: 0;
+  padding-bottom: 8px;
+}
 .smart-page .table-wrap {
-  max-height: 70vh;
+  flex: 1;
+  min-height: 0;
   overflow: auto;
 }
 .smart-page table.table thead th { position: sticky; top: 0; z-index: 6; }
